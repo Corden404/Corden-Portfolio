@@ -1,0 +1,25 @@
+node_modules/
+dist/
+.vite/
+.env
+.env.*
+!.env.example
+*.log
+*.blend1
+*.blend2
+__pycache__/
+.pytest_cache/
+.DS_Store
+Thumbs.db
+.playwright/
+# Derived exports can be recreated from the source Blender scene.
+public/assets/*.raw.glb
+public/assets/*.tmp.glb
+# Internal agent/planning scratch files must remain local.
+.agents/
+.work/
+.plans/
+.trash/
+# Local visual review notes and future planning are not website assets.
+design-qa.md
+V4 — Reference Match/Lighting Keyframes 2026-10-11/REVIEW_AND_NEXT_STEPS.md
