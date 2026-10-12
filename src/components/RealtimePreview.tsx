@@ -59,6 +59,8 @@ declare global { interface Window { __PAPER_3D?: PreviewStats } }
 const params = new URLSearchParams(window.location.search);
 const sceneOnly = params.get('view') === 'scene';
 const still = params.get('still') === '1';
+// A/B-only route for visual regression; production always uses the refined look.
+const tunedPostFx = params.get('postfx') !== '0';
 const requested = params.get('chapter') as Chapter;
 const textureUrls = Array.from({ length: 7 }, (_, i) => assetUrl(`/assets/realtime/cotton-print-${i + 1}.png`));
 const monitorUrl = assetUrl(portfolio.monitorImage);
@@ -522,9 +524,9 @@ function World({ bundle, navigation, quality, reducedMotion, schedule, linksEnab
     <Room quality={quality} version={bundle.data.assetVersion} lighting={heroLighting} metadata={bundle.heroLighting} frame={frame}
       chapter={chapter} linksEnabled={linksEnabled} onOpenLink={onOpenLink} onOpenScreen={onOpenScreen} />
     <EffectComposer enabled={false} multisampling={0} enableNormalPass={false}>
-      <RealtimeFog field={atmosphere} quality={quality} />
+      <RealtimeFog field={atmosphere} quality={quality} tuned={tunedPostFx} />
       <Bloom mipmapBlur luminanceThreshold={1.5} luminanceSmoothing={.28} intensity={.20} />
-      <RealtimeGrade version={bundle.data.assetVersion} />
+      <RealtimeGrade version={bundle.data.assetVersion} quality={quality} tuned={tunedPostFx} />
       <SMAA />
       <StaticSceneCache schedule={schedule} />
       <Noise opacity={.008} blendFunction={BlendFunction.SOFT_LIGHT} />
