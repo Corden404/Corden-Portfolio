@@ -27,6 +27,7 @@ import type { AtmosphereData } from './RealtimeFog';
 import RealtimeGrade from './RealtimeGrade';
 import { createLightingTexture, createPaperMaterial } from './realtimePaperMaterial';
 import type { LightingTexture } from './realtimePaperMaterial';
+import { PAPER_SWAY, paperSwayParameters } from './realtimePaperMotion';
 import { configureFloorMaterial } from './realtimeFloorMaterial';
 import { createRenderSchedule, FrameSchedule, StaticSceneCache } from './realtimeRenderSchedule';
 import type { RenderSchedule } from './realtimeRenderSchedule';
@@ -52,7 +53,7 @@ type LightingData = { sourceSha256: string; bakedPapers: number; grid: [number, 
 type HeroLightingData = { sourceSha256: string; names: string[]; frames: number[]; grid: [number, number]; weights: [number, number, number][] };
 type SceneBundle = { data: SceneData; binary: ArrayBuffer; lighting: LightingData; lightBinary: ArrayBuffer;
   atmosphere: AtmosphereData; volumeBinary: ArrayBuffer; heroLighting: HeroLightingData; heroBinary: ArrayBuffer };
-type PreviewStats = { ready: boolean; frame: number; fps: number; renderFrames: number; cachedFrames: number; presentedFrames: number; triangles: number; drawCalls: number; instances: number; moving: boolean; quality: Quality };
+type PreviewStats = { ready: boolean; frame: number; fps: number; renderFrames: number; cachedFrames: number; presentedFrames: number; triangles: number; drawCalls: number; instances: number; moving: boolean; quality: Quality; paperSwayTime: number; paperSwayStrength: number };
 declare global { interface Window { __PAPER_3D?: PreviewStats } }
 
 const params = new URLSearchParams(window.location.search);
@@ -148,11 +149,13 @@ function createGeometry(data: GeometryData) {
   return geometry;
 }
 
-function PaperInstances({ data, binary, textures, lighting, grid }: {
+function PaperInstances({ data, binary, textures, lighting, grid, schedule }: {
   data: SceneData; binary: ArrayBuffer; textures: Texture[]; lighting: LightingTexture; grid: [number, number];
+  schedule: RenderSchedule;
 }) {
   const collection = useMemo(() => {
     const materials: ShaderMaterial[] = [];
+    const swayMaterials: ShaderMaterial[] = [];
     const meshes: InstancedMesh[] = [];
     const matrix = new Matrix4();
     const cameraPoints = data.camera.frames.filter((_, i) => i % 12 === 0).map(f => f.position);
@@ -160,6 +163,7 @@ function PaperInstances({ data, binary, textures, lighting, grid }: {
       const number = Number(group.prototype.texture.match(/(\d+)/)![1]) - 1;
       const material = createPaperMaterial(textures[number], lighting, grid, true, .42);
       materials.push(material);
+      if (!group.prototype.ground) swayMaterials.push(material);
       const records = new Float32Array(binary, group.offset, group.count * data.instanceStride);
       const sets: number[][] = [[], [], []];
       for (let i = 0; i < group.count; i++) {
@@ -178,21 +182,27 @@ function PaperInstances({ data, binary, textures, lighting, grid }: {
         if (!indices.length) continue;
         const geometry = createGeometry(group.prototype.levels[level]);
         const offsets = new Float32Array(indices.length);
+        const sway = new Float32Array(indices.length * 3);
         const mesh = new InstancedMesh(geometry, material, indices.length);
         indices.forEach((record, index) => {
           const start = record * data.instanceStride;
           matrix.fromArray(records, start);
           mesh.setMatrixAt(index, matrix);
-          offsets[index] = (group.offset / (data.instanceStride * 4) + record) * grid[0] * grid[1] * 2;
+          const originalRecord = group.offset / (data.instanceStride * 4) + record;
+          offsets[index] = originalRecord * grid[0] * grid[1] * 2;
+          sway.set(paperSwayParameters(originalRecord, group.prototype.ground), index * 3);
         });
         geometry.setAttribute('aLightingOffset', new InstancedBufferAttribute(offsets, 1));
+        geometry.setAttribute('aPaperSway', new InstancedBufferAttribute(sway, 3));
         mesh.name = `${group.name} / detail ${level}`;
         mesh.instanceMatrix.needsUpdate = true;
         mesh.computeBoundingSphere();
+        // CPU frustum culling must include the small displacement done on the GPU.
+        if (!group.prototype.ground && mesh.boundingSphere) mesh.boundingSphere.radius += PAPER_SWAY.boundsPadding;
         meshes.push(mesh);
       }
     }
-    return { meshes, materials, users: 0 };
+    return { meshes, materials, swayMaterials, users: 0 };
   }, [binary, data, textures, lighting, grid]);
   useEffect(() => {
     collection.users++;
@@ -205,6 +215,12 @@ function PaperInstances({ data, binary, textures, lighting, grid }: {
       });
     };
   }, [collection]);
+  useFrame(() => {
+    for (const material of collection.swayMaterials) {
+      material.uniforms.uSwayTime.value = schedule.paperMotion.time;
+      material.uniforms.uSwayStrength.value = schedule.paperMotion.strength;
+    }
+  }, -1);
   return <group>{collection.meshes.map(mesh => <primitive key={mesh.name} object={mesh} />)}</group>;
 }
 
@@ -480,6 +496,7 @@ function World({ bundle, navigation, quality, reducedMotion, schedule, linksEnab
       cachedFrames: schedule.cachedFrames, presentedFrames: schedule.presentedFrames,
       triangles: gl.info.render.triangles, drawCalls: gl.info.render.calls,
       instances: bundle.data.instanceCount, moving: !!flight.current, quality,
+      paperSwayTime: schedule.paperMotion.time, paperSwayStrength: schedule.paperMotion.strength,
     };
     gl.info.reset();
   }, -2);
@@ -501,7 +518,7 @@ function World({ bundle, navigation, quality, reducedMotion, schedule, linksEnab
       <meshBasicMaterial map={glow} color={new Color().setRGB(5.4, 7.1, 7.4)} transparent
         depthWrite={false} side={DoubleSide} blending={AdditiveBlending} toneMapped={false} />
     </mesh>
-    <PaperInstances data={bundle.data} binary={bundle.binary} textures={textures} lighting={lighting} grid={bundle.lighting.grid} />
+    <PaperInstances data={bundle.data} binary={bundle.binary} textures={textures} lighting={lighting} grid={bundle.lighting.grid} schedule={schedule} />
     <Room quality={quality} version={bundle.data.assetVersion} lighting={heroLighting} metadata={bundle.heroLighting} frame={frame}
       chapter={chapter} linksEnabled={linksEnabled} onOpenLink={onOpenLink} onOpenScreen={onOpenScreen} />
     <EffectComposer enabled={false} multisampling={0} enableNormalPass={false}>
@@ -637,7 +654,7 @@ export default function RealtimePreview() {
           gl={{ antialias: false, powerPreference: 'high-performance', toneMapping: AgXToneMapping, toneMappingExposure: .9 }}
           onCreated={({ gl }) => { gl.info.autoReset = false; }}
           camera={{ near: .025, far: 55, position: [0, 2, 8] }}>
-          <FrameSchedule active={!webEntered} quality={quality} schedule={schedule} />
+          <FrameSchedule active={!webEntered} motionEnabled={!reducedMotion && !still} quality={quality} schedule={schedule} />
           <Suspense fallback={null}>
             <World bundle={bundle} navigation={navigation} quality={quality} reducedMotion={reducedMotion} schedule={schedule}
               linksEnabled={ready && !moving && !webEntered} onOpenLink={onOpenLink}

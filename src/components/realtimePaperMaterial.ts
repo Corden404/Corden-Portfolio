@@ -2,6 +2,7 @@ import {
   DataTexture, DoubleSide, HalfFloatType, NearestFilter, RGBAFormat, ShaderMaterial, Vector2,
 } from 'three';
 import type { Texture } from 'three';
+import { PAPER_SWAY } from './realtimePaperMotion';
 
 export type LightingTexture = { texture: DataTexture; size: Vector2 };
 
@@ -24,6 +25,11 @@ export function createLightingTexture(binary: ArrayBuffer): LightingTexture {
 
 const vertex = /* glsl */ `
 attribute float aLightingOffset;
+#ifdef V4_INSTANCED
+attribute vec3 aPaperSway;
+uniform float uSwayTime;
+uniform float uSwayStrength;
+#endif
 attribute float aLightingSide;
 varying vec2 vUv;
 varying float vLightingOffset;
@@ -35,7 +41,23 @@ void main() {
   vLightingSide = aLightingSide;
   vec4 p = vec4(position,1.0);
   #ifdef V4_INSTANCED
+    vec3 drift = vec3(0.0);
+    if (uSwayStrength > 0.0) {
+      float phase = uSwayTime * aPaperSway.y + aPaperSway.x;
+      float amount = uSwayStrength * aPaperSway.z;
+      float tiltX = sin(phase) * ${PAPER_SWAY.tiltX.toFixed(6)} * amount;
+      float tiltY = sin(phase * .73 + 1.7) * ${PAPER_SWAY.tiltY.toFixed(6)} * amount;
+      float cx = cos(tiltX), sx = sin(tiltX);
+      float cy = cos(tiltY), sy = sin(tiltY);
+      // Rigid motion around each paper's local origin preserves its authored curl.
+      p.yz = vec2(cx * p.y - sx * p.z, sx * p.y + cx * p.z);
+      p.xz = vec2(cy * p.x + sy * p.z, -sy * p.x + cy * p.z);
+      drift = vec3(sin(phase * .83 + .5) * ${PAPER_SWAY.driftX.toFixed(6)},
+                   sin(phase * .67 + 2.4) * ${PAPER_SWAY.driftY.toFixed(6)},
+                   cos(phase * .71) * ${PAPER_SWAY.driftZ.toFixed(6)}) * amount;
+    }
     p = instanceMatrix * p;
+    p.xyz += drift;
   #endif
   vPaperDepth = -(modelMatrix * p).z;
   gl_Position = projectionMatrix * modelViewMatrix * p;
@@ -146,6 +168,7 @@ export function createPaperMaterial(print: Texture, lighting: LightingTexture,
       uEmission: { value: emission ?? print },
       uLightingSize: { value: lighting.size }, uGrid: { value: new Vector2(...grid) },
       uTransmission: { value: transmission },
+      uSwayTime: { value: 0 }, uSwayStrength: { value: 0 },
       uFrameBase: { value: 0 }, uNextFrameBase: { value: 0 }, uFrameBlend: { value: 0 },
       uFillFrameBase: { value: 0 }, uFillBlend: { value: 0 },
     },

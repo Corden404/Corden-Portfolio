@@ -3,6 +3,8 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { EffectComposerContext } from '@react-three/postprocessing';
 import { EffectPass, Pass } from 'postprocessing';
 import type { WebGLRenderer, WebGLRenderTarget } from 'three';
+import { advancePaperMotion, createPaperMotion, paperMotionFrameDue } from './realtimePaperMotion';
+import type { PaperMotionState } from './realtimePaperMotion';
 
 export type RenderSchedule = {
   moving: boolean;
@@ -11,6 +13,8 @@ export type RenderSchedule = {
   cachedFrames: number;
   presentedFrames: number;
   lastPresentation: number;
+  lastSceneRender: number;
+  paperMotion: PaperMotionState;
   fpsStart: number;
   fpsFrames: number;
   fps: number;
@@ -20,6 +24,7 @@ export function createRenderSchedule(): RenderSchedule {
   const now = performance.now();
   return { moving: false, warmFrames: 3, renderCached: null,
     cachedFrames: 0, presentedFrames: 0, lastPresentation: now,
+    lastSceneRender: now, paperMotion: createPaperMotion(),
     fpsStart: now, fpsFrames: 0, fps: 0 };
 }
 
@@ -78,8 +83,10 @@ export function StaticSceneCache({ schedule }: { schedule: RenderSchedule }) {
   useFrame(() => {
     const autoClear = gl.autoClear;
     gl.autoClear = true;
-    try { composer.render(presentationDelta(schedule)); }
-    finally { gl.autoClear = autoClear; }
+    try {
+      composer.render(presentationDelta(schedule));
+      schedule.lastSceneRender = performance.now();
+    } finally { gl.autoClear = autoClear; }
     schedule.warmFrames = Math.max(0, schedule.warmFrames - 1);
     if (window.__PAPER_3D) Object.assign(window.__PAPER_3D, {
       cachedFrames: schedule.cachedFrames, presentedFrames: schedule.presentedFrames,
@@ -91,35 +98,49 @@ export function StaticSceneCache({ schedule }: { schedule: RenderSchedule }) {
   return <primitive object={cache} dispose={null} />;
 }
 
-export function FrameSchedule({ active, quality, schedule }: {
-  active: boolean; quality: 'cinema' | 'balanced'; schedule: RenderSchedule;
+export function FrameSchedule({ active, motionEnabled, quality, schedule }: {
+  active: boolean; motionEnabled: boolean; quality: 'cinema' | 'balanced'; schedule: RenderSchedule;
 }) {
   const { invalidate, gl, size } = useThree();
   useEffect(() => {
+    // A changed accessibility preference also resets the pose while paused.
+    advancePaperMotion(schedule.paperMotion, 0, motionEnabled, false);
     if (!active) return;
     let frame = 0;
     let last = performance.now();
+    let lastTick = last;
     const interval = 1000 / (quality === 'cinema' ? 60 : 30);
     const wake = () => { schedule.warmFrames = 3; };
     const tick = (now: number) => {
-      if (document.visibilityState === 'visible' && now - last >= interval) {
+      const visible = document.visibilityState === 'visible';
+      advancePaperMotion(schedule.paperMotion, (now - lastTick) / 1000, motionEnabled, visible);
+      lastTick = now;
+      if (visible && now - last >= interval) {
         last = now - (now - last) % interval;
-        if (schedule.moving || schedule.warmFrames > 0 || !schedule.renderCached?.()) invalidate();
+        // Refresh the HDR scene for the slow sway; reuse its final presentation
+        // between those frames. Camera travel retains its existing full cadence.
+        const ambientDue = motionEnabled && paperMotionFrameDue(now, schedule.lastSceneRender, quality);
+        if (schedule.moving || schedule.warmFrames > 0 || ambientDue || !schedule.renderCached?.()) invalidate();
       }
       frame = requestAnimationFrame(tick);
     };
+    const visibilityChanged = () => {
+      // Hidden time never becomes a large motion delta when the page returns.
+      lastTick = performance.now();
+      if (document.visibilityState === 'visible') { wake(); invalidate(); }
+    };
     wake();
-    invalidate();
+    if (document.visibilityState === 'visible') invalidate();
     gl.domElement.addEventListener('pointermove', wake);
     gl.domElement.addEventListener('pointerleave', wake);
-    document.addEventListener('visibilitychange', wake);
+    document.addEventListener('visibilitychange', visibilityChanged);
     frame = requestAnimationFrame(tick);
     return () => {
       cancelAnimationFrame(frame);
       gl.domElement.removeEventListener('pointermove', wake);
       gl.domElement.removeEventListener('pointerleave', wake);
-      document.removeEventListener('visibilitychange', wake);
+      document.removeEventListener('visibilitychange', visibilityChanged);
     };
-  }, [active, gl, invalidate, quality, schedule, size]);
+  }, [active, gl, invalidate, motionEnabled, quality, schedule, size]);
   return null;
 }
