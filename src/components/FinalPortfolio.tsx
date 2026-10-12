@@ -45,9 +45,11 @@ function ProjectDetail({ project, onClose }: { project: PortfolioProject; onClos
         <p className="detail-eyebrow">{project.category}  /  {project.year}</p>
         <h2 id="detail-title">{project.title.replace('\n', ' ')}</h2>
         <p className="detail-summary">{project.summary}</p>
-        <p className="detail-body">{project.description}</p>
+        {project.works?.length ? project.works.map(work => <div key={work.title}><h3>{work.title}</h3><p className="detail-body">{work.description}</p></div>) : <p className="detail-body">{project.description}</p>}
+        {project.achievements && <ul className="detail-body">{project.achievements.map(achievement => <li key={achievement}>{achievement}</li>)}</ul>}
+        {project.website && <a href={'https://' + project.website} target="_blank" rel="noreferrer">{project.website}</a>}
         <div className="detail-tags">{project.keywords.map((keyword) => <span key={keyword}>{keyword}</span>)}</div>
-        <p className="detail-footnote">Demonstration project — illustrative content.</p>
+        <p className="detail-footnote">{project.subtitle}</p>
       </section>
     </div>
   );
@@ -87,7 +89,7 @@ export default function FinalPortfolio({ onRevisit }: Props) {
             <div className="orbital orbital--one" />
             <div className="orbital orbital--two" />
             <div className="orbital orbital--three" />
-            <div className="orbital-core">LQ</div>
+            <div className="orbital-core">{portfolio.monogram}</div>
           </div>
           <p className="web-hero__side">INTERACTIVE COLLECTION / VOL. 01</p>
         </header>

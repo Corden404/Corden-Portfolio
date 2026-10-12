@@ -25,7 +25,7 @@ Click the scene or **Next chapter** to advance along the camera route. The chapt
 
 Edit `src/config/portfolio.ts` for the HTML catalogue, chapter captions and contact links. Set `featuredPaperCount` from 1 to 6 to change the active route while keeping all six projects in the HTML catalogue.
 
-The shipped projects are demo content. The printed artwork and physical screen content are packed into the Blender source and baked into the delivered renders. Changing them requires updating those images in Blender and rendering again; editing the config alone updates the HTML and captions.
+The project catalogue contains six selected fields of work. The original rendered version's printed artwork and physical screen content are packed into the Blender source and baked into the delivered renders. Changing those renders requires updating the images in Blender and rendering again; the default realtime version prints the current config directly on its six featured sheets. See [the realtime guide](REALTIME.md).
 
 ## Render the V4 scene
 
