@@ -1,5 +1,6 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import CinematicAtmosphere from './CinematicAtmosphere';
+import { assetUrl } from '../utils/assetUrl';
 
 import { useGLTF } from '@react-three/drei';
 import { Bloom, EffectComposer, Noise, Vignette } from '@react-three/postprocessing';
@@ -241,7 +242,7 @@ type Props = {
 };
 
 export default function PaperWorld({ stage, quality, reducedMotion, onReady, onArrive, onAssetError }: Props) {
-  const gltf = useGLTF('/assets/paper-scene.glb');
+  const gltf = useGLTF(assetUrl('/assets/paper-scene.glb'));
   const { camera, size } = useThree();
   const scene = useMemo(() => gltf.scene.clone(true), [gltf.scene]);
   const shaders = useMemo<SheetShader[]>(() => [], [scene]);
@@ -254,7 +255,7 @@ export default function PaperWorld({ stage, quality, reducedMotion, onReady, onA
 
   useEffect(() => {
     let active = true;
-    fetch('/assets/camera-path.json')
+    fetch(assetUrl('/assets/camera-path.json'))
       .then((res) => {
         if (!res.ok) throw new Error('Camera path was not exported (HTTP ' + res.status + ')');
         return res.json() as Promise<CameraPath>;

@@ -3,6 +3,7 @@ import { useTexture } from '@react-three/drei';
 import { BlendFunction, Effect } from 'postprocessing';
 import { LinearFilter, SRGBColorSpace, Uniform } from 'three';
 import type { Texture } from 'three';
+import { assetUrl } from '../utils/assetUrl';
 
 const fragment = /* glsl */ `
 uniform sampler2D sourceGrade;
@@ -27,7 +28,7 @@ class SourceGradeEffect extends Effect {
 }
 
 export default function RealtimeGrade({ version }: { version: string }) {
-  const texture=useTexture(`/assets/realtime/source-grade.png?v=${version}`);
+  const texture=useTexture(assetUrl(`/assets/realtime/source-grade.png?v=${version}`));
   texture.colorSpace=SRGBColorSpace;
   texture.minFilter=texture.magFilter=LinearFilter;
   texture.generateMipmaps=false;

@@ -6,6 +6,8 @@ Surface and volume lighting are sampled from the source Cycles scene. The two re
 
 ## Preview and controls
 
+Published site: [Corden Portfolio](https://corden404.github.io/Corden-Portfolio/). Pushes to `main` run configuration and journey checks, build the site, and deploy `dist/` through GitHub Actions. Vite's `/Corden-Portfolio/` base applies to scene assets, rendered fallbacks and page links.
+
 Run `npm ci`, then `npm run dev`. Open the URL printed by Vite.
 
 - The bottom arrows travel through all eight stops. Click the scene to advance.

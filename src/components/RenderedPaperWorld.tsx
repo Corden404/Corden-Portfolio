@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { stages } from '../config/portfolio';
 import type { Stage } from '../config/portfolio';
+import { assetUrl } from '../utils/assetUrl';
 
 type ImageSet = { cinema: string; lite: string; width: number; height: number };
 type Frame = { frame: number; landscape: ImageSet; portrait: ImageSet };
@@ -58,7 +59,7 @@ export default function RenderedPaperWorld({ stage, quality, reducedMotion, jump
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch('/assets/rendered/frames.json', { signal: controller.signal })
+    fetch(assetUrl('/assets/rendered/frames.json'), { signal: controller.signal })
       .then(async (response) => {
         if (!response.ok || !response.headers.get('content-type')?.includes('application/json')) {
           throw new Error('The scene images could not be loaded. Please try again.');
@@ -71,6 +72,16 @@ export default function RenderedPaperWorld({ stage, quality, reducedMotion, jump
             || !data.frames[key].portrait?.lite || !data.frames[key].landscape?.lite) {
             throw new Error('A scene chapter is missing.');
           }
+        }
+        for (const frame of Object.values(data.frames)) {
+          for (const image of [frame.landscape, frame.portrait]) {
+            image.cinema = assetUrl(image.cinema);
+            image.lite = assetUrl(image.lite);
+          }
+        }
+        for (const flight of Object.values(data.motion?.flights ?? {})) {
+          flight.landscape.url = assetUrl(flight.landscape.url);
+          flight.portrait.url = assetUrl(flight.portrait.url);
         }
         setManifest(data);
       })

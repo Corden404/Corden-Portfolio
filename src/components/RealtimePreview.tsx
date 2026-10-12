@@ -20,6 +20,7 @@ import type { PortfolioProject, Stage } from '../config/portfolio';
 import FinalPortfolio from './FinalPortfolio';
 import { createSkyGlowTexture } from '../utils/skyGlowTexture';
 import { createPaperTexture, paperLinkAt } from '../utils/paperTexture';
+import { assetUrl } from '../utils/assetUrl';
 import type { PaperLink } from '../utils/paperTexture';
 import RealtimeFog, { createAtmosphere } from './RealtimeFog';
 import type { AtmosphereData } from './RealtimeFog';
@@ -56,14 +57,15 @@ const params = new URLSearchParams(window.location.search);
 const sceneOnly = params.get('view') === 'scene';
 const still = params.get('still') === '1';
 const requested = params.get('chapter') as Chapter;
-const textureUrls = Array.from({ length: 7 }, (_, i) => `/assets/realtime/cotton-print-${i + 1}.png`);
+const textureUrls = Array.from({ length: 7 }, (_, i) => assetUrl(`/assets/realtime/cotton-print-${i + 1}.png`));
+const monitorUrl = assetUrl(portfolio.monitorImage);
 const resourceCache = createResourceCache();
 let preloadedVersion: string | undefined;
 function loadBundle(signal: AbortSignal, onProgress: (completed: number) => void) {
   let completed = 0;
   async function resource<T>(url: string, decode: (response: Response) => Promise<T>) {
     const value = await resourceCache.load(url, async () => {
-      const response = await fetch(url, { signal });
+      const response = await fetch(assetUrl(url), { signal });
       return decode(response);
     });
     if (!signal.aborted) onProgress(++completed);
@@ -78,10 +80,10 @@ function loadBundle(signal: AbortSignal, onProgress: (completed: number) => void
       preloadedVersion = data.assetVersion;
       // Start the GLB and PNG decoders while the light fields are downloading.
       // Drei's cache is shared with the matching useGLTF/useTexture calls.
-      useGLTF.preload(`/assets/realtime/room.glb?v=${data.assetVersion}`);
+      useGLTF.preload(assetUrl(`/assets/realtime/room.glb?v=${data.assetVersion}`));
       useTexture.preload(textureUrls);
-      useTexture.preload(portfolio.monitorImage);
-      useTexture.preload(`/assets/realtime/source-grade.png?v=${data.assetVersion}`);
+      useTexture.preload(monitorUrl);
+      useTexture.preload(assetUrl(`/assets/realtime/source-grade.png?v=${data.assetVersion}`));
       return data;
     }),
     resource('/assets/realtime/papers.bin', async response => {
@@ -231,8 +233,8 @@ function LiteFloor({ height, screen }: { height: number; screen: Vector3 }) {
 function Room({ quality, version, lighting, metadata, frame, chapter, linksEnabled, onOpenLink, onOpenScreen }: { quality: Quality; version: string;
   lighting: LightingTexture; metadata: HeroLightingData; frame: MutableRefObject<number>; chapter: Chapter;
   linksEnabled: boolean; onOpenLink: (url: string) => void; onOpenScreen: () => void }) {
-  const gltf = useGLTF(`/assets/realtime/room.glb?v=${version}`);
-  const monitor = useTexture(portfolio.monitorImage);
+  const gltf = useGLTF(assetUrl(`/assets/realtime/room.glb?v=${version}`));
+  const monitor = useTexture(monitorUrl);
   const { gl } = useThree();
   monitor.colorSpace = SRGBColorSpace;
   monitor.flipY = false;
@@ -553,11 +555,11 @@ export default function RealtimePreview() {
     if (error) {
       resourceCache.invalidate();
       useTexture.clear(textureUrls);
-      useTexture.clear(portfolio.monitorImage);
+      useTexture.clear(monitorUrl);
       const version = bundle?.data.assetVersion ?? preloadedVersion;
       if (version) {
-        useGLTF.clear(`/assets/realtime/room.glb?v=${version}`);
-        useTexture.clear(`/assets/realtime/source-grade.png?v=${version}`);
+        useGLTF.clear(assetUrl(`/assets/realtime/room.glb?v=${version}`));
+        useTexture.clear(assetUrl(`/assets/realtime/source-grade.png?v=${version}`));
       }
     }
     readyRef.current = false; setReady(false); setError(''); setBundle(undefined);
@@ -671,6 +673,6 @@ export default function RealtimePreview() {
     </footer>}
     {webEntered && <div className="portfolio-transition"><FinalPortfolio onRevisit={revisitScene} /></div>}
     {!webEntered && !ready && !error && <div className="loading-screen"><div role="status" aria-live="polite" className="loading-status"><p>正在准备场景</p><progress value={completed} max={8} aria-label="Loaded scene data resources" /><span className="visually-hidden">{completed} / 8 DATA RESOURCES READY{completed === 8 ? ' · WAITING FOR FIRST FRAME' : ''}</span></div><button type="button" className="text-link" onClick={openCollection}>查看作品集 <ArrowUpRight size={16} /></button></div>}
-    {!webEntered && error && <div className="error-screen"><div role="alert"><h2>The scene could not open.</h2><p>{error}</p></div><button type="button" className="next-button" onClick={openCollection}>VIEW COLLECTION <ArrowUpRight size={16} /></button><button type="button" className="text-link" onClick={retryScene}>RETRY 3D <RotateCcw size={16} /></button><a className="text-link" href="/?render=video">OPEN THE ORIGINAL <ArrowUpRight size={16} /></a></div>}
+    {!webEntered && error && <div className="error-screen"><div role="alert"><h2>The scene could not open.</h2><p>{error}</p></div><button type="button" className="next-button" onClick={openCollection}>VIEW COLLECTION <ArrowUpRight size={16} /></button><button type="button" className="text-link" onClick={retryScene}>RETRY 3D <RotateCcw size={16} /></button><a className="text-link" href={assetUrl('/?render=video')}>OPEN THE ORIGINAL <ArrowUpRight size={16} /></a></div>}
   </div>;
 }
