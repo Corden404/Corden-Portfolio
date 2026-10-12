@@ -18,11 +18,12 @@ const near = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-9,
 test('padding covers worst tilt and drift using every real prototype and instance transform', () => {
   const limits = motion.PAPER_SWAY;
   assert.ok(limits, 'paper sway bounds are missing');
-  assert.ok(limits.tiltX > 0 && limits.tiltX <= .018);
-  assert.ok(limits.tiltY > 0 && limits.tiltY <= .012);
-  assert.ok(limits.driftX > 0 && limits.driftX <= .008);
-  assert.ok(limits.driftY > 0 && limits.driftY <= .004);
-  assert.ok(limits.driftZ > 0 && limits.driftZ <= .004);
+  // User-requested stronger sway: 37–42% over the previous understated preset.
+  assert.ok(limits.tiltX > .018 && limits.tiltX <= .025);
+  assert.ok(limits.tiltY > .012 && limits.tiltY <= .017);
+  assert.ok(limits.driftX > .008 && limits.driftX <= .011);
+  assert.ok(limits.driftY > .004 && limits.driftY <= .0055);
+  assert.ok(limits.driftZ > .004 && limits.driftZ <= .0055);
   assert.ok(limits.boundsPadding > 0 && limits.boundsPadding <= .04);
   const scene = JSON.parse(fs.readFileSync('public/assets/realtime/scene.json'));
   const records = fs.readFileSync('public/assets/realtime/papers.bin');

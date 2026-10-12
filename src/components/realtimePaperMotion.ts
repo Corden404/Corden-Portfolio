@@ -1,7 +1,8 @@
 // Ambient motion is independent of the camera journey and its render cadence.
 export const PAPER_SWAY = {
-  tiltX: .018, tiltY: .012,
-  driftX: .008, driftY: .004, driftZ: .004,
+  // Slightly broader paper motion; all rates, seeds and reading pages stay unchanged.
+  tiltX: .025, tiltY: .017,
+  driftX: .011, driftY: .0055, driftZ: .0055,
   boundsPadding: .04,
   fadeIn: 1.2,
 } as const;
