@@ -11,6 +11,13 @@ const H = 1344;
 const serif = 'Georgia, "Microsoft YaHei", "PingFang SC", serif';
 const sans = 'Arial, "Microsoft YaHei", "PingFang SC", sans-serif';
 
+export type PaperLink = { url: string; label: string; x: number; y: number; width: number; height: number };
+export function paperLinkAt(links: PaperLink[], uv: { x: number; y: number }) {
+  // CanvasTexture.flipY is false: the authored hero UVs share canvas Y.
+  return links.find(link => uv.x >= link.x && uv.x <= link.x + link.width
+    && uv.y >= link.y && uv.y <= link.y + link.height);
+}
+
 // Keep Latin words together while allowing Chinese text to wrap by character.
 function paragraph(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, width: number, leading: number) {
   const tokens = text.match(/[A-Za-z0-9]+(?:[.+/—-][A-Za-z0-9]+)*|[^A-Za-z0-9]/gu) ?? [];
@@ -39,8 +46,22 @@ function paragraph(ctx: CanvasRenderingContext2D, text: string, x: number, y: nu
   return y;
 }
 
-function drawSelectedWork(ctx: CanvasRenderingContext2D, project: PortfolioProject) {
-  ctx.fillStyle = '#263c3e';
+function drawSelectedWork(ctx: CanvasRenderingContext2D, project: PortfolioProject, emission: boolean) {
+  const links: PaperLink[] = [];
+  const color = (ink: string) => emission ? '#ffffff' : ink;
+  function printLink(url: string, label: string, x: number, y: number, width: number) {
+    ctx.font = '26px ' + sans;
+    ctx.fillStyle = color('#315b5e');
+    const bottom = paragraph(ctx, label + ' ↗', x, y, width, 36);
+    if (!emission) {
+      ctx.strokeStyle = '#315b5e';
+      ctx.lineWidth = 1;
+      line(ctx, x, bottom - 29, x + Math.min(width, ctx.measureText(label + ' ↗').width), bottom - 29);
+    }
+    links.push({ url, label, x: (x - 14) / W, y: (y - 30) / H, width: (width + 28) / W, height: (bottom - y + 20) / H });
+    return bottom;
+  }
+  ctx.fillStyle = color('#263c3e');
   ctx.font = '600 30px ' + sans;
   ctx.fillText('PAPER ' + project.number + '  /  ' + project.category, 96, 105);
   ctx.textAlign = 'right';
@@ -49,56 +70,64 @@ function drawSelectedWork(ctx: CanvasRenderingContext2D, project: PortfolioProje
   ctx.textAlign = 'left';
   ctx.strokeStyle = 'rgba(34,55,56,.3)';
   ctx.lineWidth = 2;
-  line(ctx, 96, 144, 1696, 144);
+  if (!emission) line(ctx, 96, 144, 1696, 144);
 
-  ctx.fillStyle = '#263737';
+  ctx.fillStyle = color('#263737');
   ctx.font = '600 86px ' + sans;
   project.title.split('\n').forEach((text, index) => ctx.fillText(text, 94, 300 + index * 118));
 
   // A quiet, source-style diagram balances the editorial text column.
-  ctx.save();
-  ctx.translate(65, 440);
-  ctx.scale(.34, .5);
-  drawArtwork(ctx, project);
-  ctx.restore();
+  if (!emission) {
+    ctx.save();
+    ctx.translate(65, 440);
+    ctx.scale(.34, .5);
+    drawArtwork(ctx, project);
+    ctx.restore();
+  }
 
   const x = 726, width = 970;
   let y = 229;
   project.works?.forEach((work, index) => {
     ctx.font = '24px ' + sans;
-    ctx.fillStyle = '#5e706d';
+    ctx.fillStyle = color('#5e706d');
     ctx.fillText(project.works!.length > 1 ? `展示项目${index === 0 ? '一' : '二'}` : '展示项目', x, y);
     ctx.font = '600 34px ' + sans;
-    ctx.fillStyle = '#263737';
+    ctx.fillStyle = color('#263737');
     y = paragraph(ctx, work.title, x, y + 55, width, 46);
     ctx.font = '30px ' + sans;
-    ctx.fillStyle = '#344749';
-    y = paragraph(ctx, work.description, x, y + 8, width, 48) + 38;
+    ctx.fillStyle = color('#344749');
+    y = paragraph(ctx, work.description, x, y + 8, width, 48);
+    if (work.url) {
+      const address = new URL(work.url);
+      const label = address.hostname.replace(/^www\./, '') + address.pathname.replace(/\/pulls$/, '');
+      y = printLink(work.url, label, x, y + 8, width);
+    }
+    y += 28;
   });
   ctx.font = '24px ' + sans;
-  ctx.fillStyle = '#5e706d';
+  ctx.fillStyle = color('#5e706d');
   ctx.fillText('核心成果', x, y);
   y += 54;
   ctx.font = '30px ' + sans;
-  ctx.fillStyle = '#344749';
+  ctx.fillStyle = color('#344749');
   project.achievements?.forEach(achievement => {
     ctx.fillText('—', x, y);
     y = paragraph(ctx, achievement, x + 42, y, width - 42, 46) + 10;
   });
   if (project.website) {
-    ctx.font = '28px ' + sans;
-    ctx.fillText('线上应用  /  ' + project.website, x, y + 28);
+    printLink('https://' + project.website, '线上应用  /  ' + project.website, x, y + 28, width);
   }
-  line(ctx, 96, 1090, 1696, 1090);
+  if (!emission) line(ctx, 96, 1090, 1696, 1090);
   ctx.font = '32px ' + sans;
-  ctx.fillStyle = '#263737';
+  ctx.fillStyle = color('#263737');
   paragraph(ctx, project.subtitle, 96, 1160, 1600, 44);
   ctx.font = '26px ' + sans;
-  ctx.fillStyle = '#5e706d';
+  ctx.fillStyle = color('#5e706d');
   ctx.fillText(project.keywords.join(' / '), 96, 1250);
   ctx.textAlign = 'right';
   ctx.fillText(project.number + ' / 06', 1696, 1250);
   ctx.textAlign = 'left';
+  return links;
 }
 
 function line(ctx: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number) {
@@ -234,7 +263,7 @@ function drawArtwork(ctx: CanvasRenderingContext2D, project: PortfolioProject) {
   ctx.restore();
 }
 
-export function createPaperTexture(project: PortfolioProject) {
+export function createPaperTexture(project: PortfolioProject, emission = false) {
   const canvas = document.createElement('canvas');
   // Six separate paper textures are memory-heavy on mobile. Reduce their
   // resolution there without changing the authored design-space coordinates.
@@ -244,18 +273,19 @@ export function createPaperTexture(project: PortfolioProject) {
   const ctx = canvas.getContext('2d', { alpha: false })!;
   if (mobile) ctx.scale(1024 / W, 768 / H);
 
-  // Warm fibrous paper base + tiny ink noise. Never emissive.
-  ctx.fillStyle = '#dddcd1'; ctx.fillRect(0, 0, W, H);
+  // The separate emission mask contains lettering only; cotton stays matte.
+  ctx.fillStyle = emission ? '#000000' : '#dddcd1'; ctx.fillRect(0, 0, W, H);
   ctx.fillStyle = 'rgba(66,76,70,.025)';
-  for (let i = 0; i < 7300; i++) {
+  for (let i = 0; !emission && i < 7300; i++) {
     const x = (i * 827 + 137) % W;
     const y = (i * 479 + 59) % H;
     ctx.fillRect(x, y, 1.5 + (i % 3), 1.5);
   }
 
+  let links: PaperLink[] = [];
   if (project.works?.length) {
-    drawSelectedWork(ctx, project);
-  } else {
+    links = drawSelectedWork(ctx, project, emission);
+  } else if (!emission) {
     ctx.fillStyle = '#263c3e';
     ctx.font = '600 26px ' + sans;
     ctx.letterSpacing = '5px';
@@ -295,7 +325,7 @@ export function createPaperTexture(project: PortfolioProject) {
   }
 
   const texture = new CanvasTexture(canvas);
-  texture.colorSpace = SRGBColorSpace;
+  if (!emission) texture.colorSpace = SRGBColorSpace;
   texture.flipY = false;
   texture.wrapS = ClampToEdgeWrapping;
   texture.wrapT = ClampToEdgeWrapping;
@@ -303,5 +333,6 @@ export function createPaperTexture(project: PortfolioProject) {
   texture.magFilter = LinearFilter;
   texture.anisotropy = 4;
   texture.needsUpdate = true;
+  texture.userData.paperLinks = links;
   return texture;
 }

@@ -33,3 +33,5 @@
   .realtime-preview .scene-footer { bottom:8px; }
   .realtime-preview .journey-hint { bottom:46px; }
 }
+.realtime-preview .paper-keyboard-links { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; }
+.realtime-preview .paper-keyboard-links:focus-within { z-index:9; top:70px; right:24px; width:auto; max-width:calc(100% - 48px); height:auto; margin:0; padding:16px; clip:auto; display:flex; flex-direction:column; gap:12px; white-space:normal; background:#091216; font-size:12px; }

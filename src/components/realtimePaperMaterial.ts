@@ -43,6 +43,7 @@ void main() {
 
 const fragment = /* glsl */ `
 uniform sampler2D uPrint;
+uniform sampler2D uEmission;
 uniform sampler2D uIrradiance;
 uniform vec2 uLightingSize;
 uniform vec2 uGrid;
@@ -124,18 +125,25 @@ void main() {
     // lifting the printed blacks or brightening the instanced background.
     ink *= vec3(.90,.94,.94);
   #endif
-  gl_FragColor = vec4(ink * irradiance,1.0);
+  vec3 color = ink * irradiance;
+  #ifdef V4_GLOW
+    // Only the lettering emits light. Keep the cotton's baked shading intact.
+    float lettering = texture2D(uEmission,vUv).r;
+    color += lettering * vec3(1.0,.91,.76) * 2.8;
+  #endif
+  gl_FragColor = vec4(color,1.0);
   #include <colorspace_fragment>
 }`;
 
 export function createPaperMaterial(print: Texture, lighting: LightingTexture,
-  grid: [number, number], instanced: boolean, transmission: number, hero = false) {
+  grid: [number, number], instanced: boolean, transmission: number, hero = false, emission?: Texture) {
   return new ShaderMaterial({
     name: 'V4 | Cycles sampled thin paper',
     vertexShader: vertex, fragmentShader: fragment, side: DoubleSide,
-    defines: instanced ? { V4_INSTANCED: 1 } : hero ? { V4_HERO: 1 } : {},
+    defines: { ...(instanced ? { V4_INSTANCED: 1 } : hero ? { V4_HERO: 1 } : {}), ...(emission ? { V4_GLOW: 1 } : {}) },
     uniforms: {
       uPrint: { value: print }, uIrradiance: { value: lighting.texture },
+      uEmission: { value: emission ?? print },
       uLightingSize: { value: lighting.size }, uGrid: { value: new Vector2(...grid) },
       uTransmission: { value: transmission },
       uFrameBase: { value: 0 }, uNextFrameBase: { value: 0 }, uFrameBlend: { value: 0 },

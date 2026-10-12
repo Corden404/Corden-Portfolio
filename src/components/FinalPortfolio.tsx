@@ -45,7 +45,7 @@ function ProjectDetail({ project, onClose }: { project: PortfolioProject; onClos
         <p className="detail-eyebrow">{project.category}  /  {project.year}</p>
         <h2 id="detail-title">{project.title.replace('\n', ' ')}</h2>
         <p className="detail-summary">{project.summary}</p>
-        {project.works?.length ? project.works.map(work => <div key={work.title}><h3>{work.title}</h3><p className="detail-body">{work.description}</p></div>) : <p className="detail-body">{project.description}</p>}
+        {project.works?.length ? project.works.map(work => <div key={work.title}><h3>{work.title}</h3><p className="detail-body">{work.description}</p>{work.url && <a href={work.url} target="_blank" rel="noreferrer">查看项目 <ArrowUpRight size={14} /></a>}</div>) : <p className="detail-body">{project.description}</p>}
         {project.achievements && <ul className="detail-body">{project.achievements.map(achievement => <li key={achievement}>{achievement}</li>)}</ul>}
         {project.website && <a href={'https://' + project.website} target="_blank" rel="noreferrer">{project.website}</a>}
         <div className="detail-tags">{project.keywords.map((keyword) => <span key={keyword}>{keyword}</span>)}</div>

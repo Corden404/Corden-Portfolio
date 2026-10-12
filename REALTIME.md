@@ -35,6 +35,10 @@ node tools/realtime_journey_test.mjs
 
 The six featured papers use `editablePrint: true` in `src/config/portfolio.ts`. Edit the title, category, `works`, `achievements`, subtitle, keywords and optional website there. The browser prints the Chinese/English content onto each sheet with automatic wrapping, preserving its geometry and baked illumination. Surrounding sheets retain the V4 artwork. The HTML project catalogue uses the same content.
 
+Featured lettering emits a warm white glow through a separate text mask; the paper and diagrams retain their sampled surface lighting. Each work's `url` is printed below its description. Click that line on the 3D sheet to open the destination in a new tab. Dual-project sheets have separate links, and the last paper also links to the live application. Link clicks stay on the current chapter. Keyboard users can Tab to the same links; the otherwise hidden link list becomes visible on focus. Project details in the HTML collection include these destinations too.
+
+The Starnet link uses the public source repository. Kaggle links to the public competition page. WebCodex links to the author's merged upstream pull requests.
+
 The physical monitor uses `portfolio.monitorImage`. It currently displays a local capture of [Corden404's GitHub profile](https://github.com/Corden404). The capture is a texture, so it works without contacting GitHub while the scene loads. Clicking the monitor or **Open GitHub** opens the live profile. Changes on GitHub are visible through that link; refreshing the physical display requires replacing the local capture.
 
 Changing printed text or a screen image does not require remodeling or rerendering a camera journey. Changing sheet shape, position or the room's main light rig requires reexporting the relevant geometry and lighting.

@@ -1,4 +1,5 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import type { ThreeEvent } from '@react-three/fiber';
 import { MeshReflectorMaterial, useGLTF, useTexture } from '@react-three/drei';
 import type { MeshReflectorMaterial as ReflectorMaterial } from '@react-three/drei/materials/MeshReflectorMaterial';
 import { Bloom, EffectComposer, Noise, SMAA } from '@react-three/postprocessing';
@@ -18,7 +19,8 @@ import { portfolio, stages } from '../config/portfolio';
 import type { PortfolioProject, Stage } from '../config/portfolio';
 import FinalPortfolio from './FinalPortfolio';
 import { createSkyGlowTexture } from '../utils/skyGlowTexture';
-import { createPaperTexture } from '../utils/paperTexture';
+import { createPaperTexture, paperLinkAt } from '../utils/paperTexture';
+import type { PaperLink } from '../utils/paperTexture';
 import RealtimeFog, { createAtmosphere } from './RealtimeFog';
 import type { AtmosphereData } from './RealtimeFog';
 import RealtimeGrade from './RealtimeGrade';
@@ -226,8 +228,9 @@ function LiteFloor({ height, screen }: { height: number; screen: Vector3 }) {
   </mesh>;
 }
 
-function Room({ quality, version, lighting, metadata, frame, onOpenScreen }: { quality: Quality; version: string;
-  lighting: LightingTexture; metadata: HeroLightingData; frame: MutableRefObject<number>; onOpenScreen: () => void }) {
+function Room({ quality, version, lighting, metadata, frame, chapter, linksEnabled, onOpenLink, onOpenScreen }: { quality: Quality; version: string;
+  lighting: LightingTexture; metadata: HeroLightingData; frame: MutableRefObject<number>; chapter: Chapter;
+  linksEnabled: boolean; onOpenLink: (url: string) => void; onOpenScreen: () => void }) {
   const gltf = useGLTF(`/assets/realtime/room.glb?v=${version}`);
   const monitor = useTexture(portfolio.monitorImage);
   const { gl } = useThree();
@@ -271,7 +274,11 @@ function Room({ quality, version, lighting, metadata, frame, onOpenScreen }: { q
           const project: PortfolioProject | undefined = portfolio.projects[index];
           const print = project?.editablePrint ? createPaperTexture(project) : material.map;
           if (print !== material.map) ownedTextures.push(print);
-          const paper = createPaperMaterial(print, lighting, metadata.grid, false, .38, true);
+          const emission = project?.editablePrint ? createPaperTexture(project, true) : undefined;
+          if (emission) ownedTextures.push(emission);
+          mesh.userData.paperId = project?.id;
+          mesh.userData.paperLinks = print.userData.paperLinks ?? [];
+          const paper = createPaperMaterial(print, lighting, metadata.grid, false, .38, true, emission);
           heroMaterials.push(paper); ownedMaterials.push(paper); material.dispose();
           return paper;
         }
@@ -337,20 +344,38 @@ function Room({ quality, version, lighting, metadata, frame, onOpenScreen }: { q
       material.uniforms.uFillBlend.value = fill;
     });
   }, -1);
+  const linkFor = (event: ThreeEvent<PointerEvent> | ThreeEvent<MouseEvent>) =>
+    linksEnabled && event.uv && event.object.userData.paperId === chapter
+      ? paperLinkAt(event.object.userData.paperLinks as PaperLink[], event.uv) : undefined;
+  useEffect(() => {
+    gl.domElement.style.cursor = '';
+    return () => { gl.domElement.style.cursor = ''; };
+  }, [chapter, gl, linksEnabled]);
   return <>
-    <primitive object={room.scene} dispose={null} onClick={(event: { object: Mesh; stopPropagation: () => void }) => {
-      if (event.object.name.replace(/_/g, ' ').includes('Monitor warm display')) {
-        event.stopPropagation(); onOpenScreen();
-      }
-    }} />
+    <primitive object={room.scene} dispose={null}
+      onPointerMove={(event: ThreeEvent<PointerEvent>) => {
+        if (linkFor(event)) { event.stopPropagation(); gl.domElement.style.cursor = 'pointer'; }
+        else gl.domElement.style.cursor = '';
+      }}
+      onPointerOut={() => { gl.domElement.style.cursor = ''; }}
+      onClick={(event: ThreeEvent<MouseEvent>) => {
+        const link = linkFor(event);
+        if (link) {
+          event.stopPropagation(); event.nativeEvent.stopPropagation(); onOpenLink(link.url); return;
+        }
+        if (event.object.name.replace(/_/g, ' ').includes('Monitor warm display')) {
+          event.stopPropagation(); event.nativeEvent.stopPropagation(); onOpenScreen();
+        }
+      }} />
     {quality === 'cinema' ? <ReflectiveFloor height={room.floorHeight} screen={room.screen} /> :
       <LiteFloor height={room.floorHeight} screen={room.screen} />}
   </>;
 }
 
-function World({ bundle, navigation, quality, reducedMotion, schedule, onReady, onArrive, onOpenScreen }: {
+function World({ bundle, navigation, quality, reducedMotion, schedule, linksEnabled, onOpenLink, onReady, onArrive, onOpenScreen }: {
   bundle: SceneBundle; navigation: NavigationRequest<Chapter>; quality: Quality;
   schedule: RenderSchedule;
+  linksEnabled: boolean; onOpenLink: (url: string) => void;
   reducedMotion: boolean; onReady: () => void; onArrive: () => void; onOpenScreen: () => void;
 }) {
   const { camera, size, gl, invalidate } = useThree();
@@ -471,7 +496,8 @@ function World({ bundle, navigation, quality, reducedMotion, schedule, onReady, 
         depthWrite={false} side={DoubleSide} blending={AdditiveBlending} toneMapped={false} />
     </mesh>
     <PaperInstances data={bundle.data} binary={bundle.binary} textures={textures} lighting={lighting} grid={bundle.lighting.grid} />
-    <Room quality={quality} version={bundle.data.assetVersion} lighting={heroLighting} metadata={bundle.heroLighting} frame={frame} onOpenScreen={onOpenScreen} />
+    <Room quality={quality} version={bundle.data.assetVersion} lighting={heroLighting} metadata={bundle.heroLighting} frame={frame}
+      chapter={chapter} linksEnabled={linksEnabled} onOpenLink={onOpenLink} onOpenScreen={onOpenScreen} />
     <EffectComposer enabled={false} multisampling={0} enableNormalPass={false}>
       <RealtimeFog field={atmosphere} quality={quality} />
       <Bloom mipmapBlur luminanceThreshold={1.5} luminanceSmoothing={.28} intensity={.20} />
@@ -545,6 +571,9 @@ export default function RealtimePreview() {
   const onOpenScreen = useCallback(() => {
     if (chapter === 'screen' && ready && !moving) window.open(portfolio.github, '_blank', 'noopener,noreferrer');
   }, [chapter, moving, ready]);
+  const onOpenLink = useCallback((url: string) => {
+    if (ready && !moving && !webEntered) window.open(url, '_blank', 'noopener,noreferrer');
+  }, [moving, ready, webEntered]);
   useEffect(() => {
     if (webEntered || readyRef.current) return;
     let active = true;
@@ -591,7 +620,9 @@ export default function RealtimePreview() {
           camera={{ near: .025, far: 55, position: [0, 2, 8] }}>
           <FrameSchedule active={!webEntered} quality={quality} schedule={schedule} />
           <Suspense fallback={null}>
-            <World bundle={bundle} navigation={navigation} quality={quality} reducedMotion={reducedMotion} schedule={schedule} onReady={onReady} onArrive={onArrive} onOpenScreen={onOpenScreen} />
+            <World bundle={bundle} navigation={navigation} quality={quality} reducedMotion={reducedMotion} schedule={schedule}
+              linksEnabled={ready && !moving && !webEntered} onOpenLink={onOpenLink}
+              onReady={onReady} onArrive={onArrive} onOpenScreen={onOpenScreen} />
           </Suspense>
         </Canvas>
       </PreviewBoundary>}
@@ -615,6 +646,10 @@ export default function RealtimePreview() {
         {project.website && <p>{project.website}</p>}
       </>}
     </section>}
+    {!webEntered && project && ready && !moving && <nav className="paper-keyboard-links" aria-label="Current paper links">
+      {project.works?.filter(work => work.url).map(work => <a key={work.title} href={work.url} target="_blank" rel="noreferrer">{work.title} ↗</a>)}
+      {project.website && <a href={'https://' + project.website} target="_blank" rel="noreferrer">{project.website} ↗</a>}
+    </nav>}
     {!webEntered && ready && !error && <footer className="scene-footer">
       {index === 0 && <p className="journey-hint">点击画面开始</p>}
       <button className="back-button" type="button" aria-label="Previous chapter" disabled={index === 0 || moving} onClick={() => goTo(chapters[index - 1])}><ArrowLeft size={18} /></button>
