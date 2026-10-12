@@ -580,7 +580,6 @@ export default function RealtimePreview() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [goTo, index, revisitScene, webEntered]);
-  const heading = project ? project.heroHeading : chapter === 'screen' ? 'THE WORK\nCOMES INTO VIEW.' : "IDEAS DON'T\nSTAY ON PAPER.";
   return <div className={`experience experience--rendered realtime-preview${sceneOnly && !webEntered ? ' experience--scene-only' : ''}${webEntered ? ' experience--web' : ''}`}>
     <div className="scene-canvas" aria-hidden="true" onClick={() => {
       if (!sceneOnly && chapter !== 'screen') goTo(chapters[index + 1]);
@@ -598,48 +597,45 @@ export default function RealtimePreview() {
       </PreviewBoundary>}
     </div>
     <header className={`site-header${webEntered ? ' site-header--hidden' : ''}`}>
-      <div className="brand"><span className="brand-icon">{portfolio.monogram}</span><span className="brand-label">PAPER SCENE<small>LIGHT, PAPER & SPACE</small></span></div>
       <div className="header-actions">
-        <button type="button" className="text-link collection-link" onClick={openCollection}>COLLECTION <ArrowUpRight size={14} /></button>
-        <span className="realtime-indicator"><i /> LIVE 3D</span>
+        <button type="button" className="text-link collection-link" onClick={openCollection}>作品集 <ArrowUpRight size={14} /></button>
         <button className="quality-toggle" onClick={() => setQuality(quality === 'cinema' ? 'balanced' : 'cinema')} aria-label="Toggle 3D quality"
           aria-pressed={quality === 'cinema'} title={quality === 'cinema' ? 'Cinema quality · switch to Lite' : 'Lite quality · switch to Cinema'}>
-          {quality === 'cinema' ? <Eye size={16} /> : <EyeOff size={16} />}<span>{quality === 'cinema' ? 'CINEMA' : 'LITE'}</span>
+          {quality === 'cinema' ? <Eye size={16} /> : <EyeOff size={16} />}
         </button>
-        <button className="text-link" type="button" aria-label="Skip to the GitHub screen" disabled={!ready || chapter === 'screen'} onClick={() => goTo('screen', true)}><span className="skip-label">SKIP INTRO</span><ArrowUpRight size={14} /></button>
-        <a className="text-link realtime-reference" href={`/?render=video&view=scene&chapter=${chapter}`} target="_blank" rel="noreferrer" aria-label="Open the original rendered scene"><span className="reference-label">ORIGINAL</span><ArrowUpRight size={14} /></a>
       </div>
     </header>
-    {!webEntered && <div className={`scene-copy scene-copy--${chapter}${project ? ' scene-copy--featured-paper' : ''}${moving ? ' scene-copy--moving' : ''}`}>
-      <div className="intro-rule"><span /><p>{project?.tag ?? 'THE WORLD BETWEEN THE PAGES'}</p></div>
-      <p className="scene-copy__index">{String(index).padStart(2, '0')} / {String(chapters.length - 1).padStart(2, '0')}</p>
-      {project ? <h1 className="project-heading"><span className="project-heading__title">{project.title.replace('\n', ' ')}</span><span className="visually-hidden">{project.heroHeading.replace('\n', ' ')}</span></h1> :
-        <h1>{heading.split('\n').map(line => <span key={line}>{line}</span>)}</h1>}
-      <p className="scene-copy__desc">{project?.summary ?? 'Follow the pages. A live journey through light, paper and space.'}</p>
-      {index === 0 && <p className="intro-hint">MOVE YOUR POINTER · FOLLOW THE PAGES</p>}
-    </div>}
-    {!webEntered && <footer className="scene-footer">
+    {!webEntered && <section className="visually-hidden" aria-live="polite" aria-atomic="true">
+      <h1>{project ? project.title.replace('\n', ' ') : chapter === 'screen' ? 'GitHub' : 'Paper Scene'}</h1>
+      {project && <>
+        <p>{project.category}</p>
+        {project.works?.map(work => <div key={work.title}><h2>{work.title}</h2><p>{work.description}</p></div>)}
+        <ul>{project.achievements?.map(achievement => <li key={achievement}>{achievement}</li>)}</ul>
+        <p>{project.subtitle}</p><p>{project.keywords.join(' / ')}</p>
+        {project.website && <p>{project.website}</p>}
+      </>}
+    </section>}
+    {!webEntered && ready && !error && <footer className="scene-footer">
+      {index === 0 && <p className="journey-hint">点击画面开始</p>}
+      <button className="back-button" type="button" aria-label="Previous chapter" disabled={index === 0 || moving} onClick={() => goTo(chapters[index - 1])}><ArrowLeft size={18} /></button>
       <div className="footer-chapters" aria-label="3D chapters">
-        {chapters.map((entry, i) => <button className={`chapter-marker${entry === chapter ? ' chapter-marker--active' : ''}`}
+        {chapters.map(entry => <button className={`chapter-marker${entry === chapter ? ' chapter-marker--active' : ''}`}
           key={entry} disabled={!ready || !!error} onClick={() => goTo(entry, true)} aria-current={entry === chapter ? 'step' : undefined}
           aria-label={entry === 'intro' ? 'Go to the space' : entry === 'screen' ? 'Go to the GitHub screen' : `Go to ${portfolio.projects.find(item => item.id === entry)?.title.replace('\n', ' ') ?? entry}`}>
-          <span className="chapter-marker__index">0{i}</span><span className="chapter-marker__bar" />
-          <span className="chapter-marker__name">{i === 0 ? 'THE SPACE' : entry === 'screen' ? 'THE SCREEN' : `PAPER 0${i}`}</span>
+          <span className="chapter-marker__bar" />
         </button>)}
       </div>
       <div className="footer-actions">
-        {index > 0 && <button className="back-button" disabled={!ready || moving} onClick={() => goTo(chapters[index - 1])}><ArrowLeft size={16} /> BACK</button>}
         {chapter === 'screen' ? <>
           <button type="button" className="replay-button" disabled={!ready || moving} onClick={() => goTo('intro', true)} aria-label="Replay journey"><RotateCcw size={16} /></button>
-          <a className={`next-button${moving ? ' next-button--disabled' : ''}`} href={portfolio.github} target="_blank" rel="noreferrer" aria-disabled={moving} onClick={event => { if (moving) event.preventDefault(); }}>OPEN GITHUB <ArrowUpRight size={17} /></a>
-        </> : <button className="next-button" disabled={!ready || moving} onClick={() => goTo(chapters[index + 1])}>
-          {index === 0 ? 'BEGIN JOURNEY' : index === chapters.length - 2 ? 'THE FULL STORY' : 'NEXT CHAPTER'}<ArrowRight size={17} />
+          <a className={`scene-forward${moving ? ' scene-forward--disabled' : ''}`} href={portfolio.github} target="_blank" rel="noreferrer" aria-label="Open GitHub" aria-disabled={moving} onClick={event => { if (moving) event.preventDefault(); }}><ArrowUpRight size={18} /></a>
+        </> : <button className="scene-forward" type="button" aria-label={index === 0 ? 'Begin journey' : 'Next chapter'} disabled={!ready || moving} onClick={() => goTo(chapters[index + 1])}>
+          <ArrowRight size={18} />
         </button>}
       </div>
     </footer>}
-    {!webEntered && chapter === 'screen' && ready && !moving && <div className="screen-caption"><span>GITHUB.COM / CORDEN404</span><button type="button" className="text-link" onClick={openCollection}>VIEW COLLECTION <ArrowUpRight size={14} /></button></div>}
     {webEntered && <div className="portfolio-transition"><FinalPortfolio onRevisit={revisitScene} /></div>}
-    {!webEntered && !ready && !error && <div className="loading-screen"><div role="status" aria-live="polite" className="loading-status"><div className="loading-logo">LQ</div><p>{completed < 8 ? 'LOADING SCENE RESOURCES' : 'DECODING & PREPARING 3D'}</p><progress value={completed} max={8} aria-label="Loaded scene data resources" /><span>{completed} / 8 DATA RESOURCES READY{completed === 8 ? ' · WAITING FOR FIRST FRAME' : ''}</span></div><button type="button" className="next-button" onClick={openCollection}>VIEW COLLECTION <ArrowUpRight size={16} /></button></div>}
+    {!webEntered && !ready && !error && <div className="loading-screen"><div role="status" aria-live="polite" className="loading-status"><p>正在准备场景</p><progress value={completed} max={8} aria-label="Loaded scene data resources" /><span className="visually-hidden">{completed} / 8 DATA RESOURCES READY{completed === 8 ? ' · WAITING FOR FIRST FRAME' : ''}</span></div><button type="button" className="text-link" onClick={openCollection}>查看作品集 <ArrowUpRight size={16} /></button></div>}
     {!webEntered && error && <div className="error-screen"><div role="alert"><h2>The scene could not open.</h2><p>{error}</p></div><button type="button" className="next-button" onClick={openCollection}>VIEW COLLECTION <ArrowUpRight size={16} /></button><button type="button" className="text-link" onClick={retryScene}>RETRY 3D <RotateCcw size={16} /></button><a className="text-link" href="/?render=video">OPEN THE ORIGINAL <ArrowUpRight size={16} /></a></div>}
   </div>;
 }
