@@ -86,7 +86,7 @@ export const portfolio = {
         { title: 'SMP2026 Starnet Agent', url: 'https://github.com/Corden404/SMP2026-Starnet-Agent-Public', description: '面向星网挑战赛设计智能决策系统，结合网络拓扑分析、环境侦察、状态估计与策略规划，在有限资源下选择行动。' },
         { title: 'Kaggle S6E9 — EV Purchase Prediction', url: 'https://www.kaggle.com/competitions/playground-series-s6e9', description: '通过特征工程、交叉验证及 LightGBM、XGBoost 等模型融合，完成电动汽车购买意向预测任务。' },
       ],
-      achievements: ['智能体状态估计与策略优化', '多模型训练、评估与融合', 'Kaggle Public AUC：0.94638（2026 年 9 月 14 日）'],
+      achievements: ['SMP2026 星网挑战赛：排名前 20%', 'Kaggle S6E9：排名前 20%', '智能体策略优化与多模型训练、评估及融合'],
       keywords: ['机器学习', '数据分析', '策略优化'],
       style: 'orbit', accent: '#99aca0', editablePrint: true,
     },
