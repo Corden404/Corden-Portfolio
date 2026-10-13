@@ -1,5 +1,11 @@
 # 项目介绍
 
+在线预览：**[GitHub Pages](https://corden404.github.io/Corden-Portfolio/)**
+
+[![网站开场场景](docs/images/pages-overview.jpg)](https://corden404.github.io/Corden-Portfolio/)
+
+[![PAPER 04：智能决策与数据建模](docs/images/pages-paper04.jpg)](https://corden404.github.io/Corden-Portfolio/?chapter=paper-d)
+
 ## [Qwen Beats Minecraft](https://github.com/Corden404/qwen-beat-minecraft)
 
 由本地 Qwen 3.5 9B 驱动的 Minecraft 智能体，通过 llama.cpp 提供推理服务，让模型根据游戏状态进行任务规划与行动选择。
