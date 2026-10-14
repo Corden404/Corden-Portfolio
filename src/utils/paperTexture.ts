@@ -48,10 +48,13 @@ function paragraph(ctx: CanvasRenderingContext2D, text: string, x: number, y: nu
 
 function drawSelectedWork(ctx: CanvasRenderingContext2D, project: PortfolioProject, emission: boolean) {
   const links: PaperLink[] = [];
-  const color = (ink: string) => emission ? '#ffffff' : ink;
+  // Keep the title luminous while body copy and captions sit on the cotton.
+  // These values only affect emission; printed ink and link hitboxes stay aligned.
+  const emissionInk = { title: '#e6e6e6', heading: '#b8b8b8', body: '#8f8f8f', meta: '#6e6e6e', link: '#a6a6a6' };
+  const color = (ink: string, role: keyof typeof emissionInk = 'body') => emission ? emissionInk[role] : ink;
   function printLink(url: string, label: string, x: number, y: number, width: number) {
     ctx.font = '26px ' + sans;
-    ctx.fillStyle = color('#315b5e');
+    ctx.fillStyle = color('#315b5e', 'link');
     const bottom = paragraph(ctx, label + ' ↗', x, y, width, 36);
     if (!emission) {
       ctx.strokeStyle = '#315b5e';
@@ -61,7 +64,7 @@ function drawSelectedWork(ctx: CanvasRenderingContext2D, project: PortfolioProje
     links.push({ url, label, x: (x - 14) / W, y: (y - 30) / H, width: (width + 28) / W, height: (bottom - y + 20) / H });
     return bottom;
   }
-  ctx.fillStyle = color('#263c3e');
+  ctx.fillStyle = color('#263c3e', 'meta');
   ctx.font = '600 30px ' + sans;
   ctx.fillText('PAPER ' + project.number + '  /  ' + project.category, 96, 105);
   ctx.textAlign = 'right';
@@ -72,7 +75,7 @@ function drawSelectedWork(ctx: CanvasRenderingContext2D, project: PortfolioProje
   ctx.lineWidth = 2;
   if (!emission) line(ctx, 96, 144, 1696, 144);
 
-  ctx.fillStyle = color('#263737');
+  ctx.fillStyle = color('#263737', 'title');
   ctx.font = '600 86px ' + sans;
   project.title.split('\n').forEach((text, index) => ctx.fillText(text, 94, 300 + index * 118));
 
@@ -89,10 +92,10 @@ function drawSelectedWork(ctx: CanvasRenderingContext2D, project: PortfolioProje
   let y = 229;
   project.works?.forEach((work, index) => {
     ctx.font = '24px ' + sans;
-    ctx.fillStyle = color('#5e706d');
+    ctx.fillStyle = color('#5e706d', 'meta');
     ctx.fillText(project.works!.length > 1 ? `展示项目${index === 0 ? '一' : '二'}` : '展示项目', x, y);
     ctx.font = '600 34px ' + sans;
-    ctx.fillStyle = color('#263737');
+    ctx.fillStyle = color('#263737', 'heading');
     y = paragraph(ctx, work.title, x, y + 55, width, 46);
     ctx.font = '30px ' + sans;
     ctx.fillStyle = color('#344749');
@@ -105,7 +108,7 @@ function drawSelectedWork(ctx: CanvasRenderingContext2D, project: PortfolioProje
     y += 28;
   });
   ctx.font = '24px ' + sans;
-  ctx.fillStyle = color('#5e706d');
+  ctx.fillStyle = color('#5e706d', 'meta');
   ctx.fillText('核心成果', x, y);
   y += 54;
   ctx.font = '30px ' + sans;
@@ -122,7 +125,7 @@ function drawSelectedWork(ctx: CanvasRenderingContext2D, project: PortfolioProje
   ctx.fillStyle = color('#263737');
   paragraph(ctx, project.subtitle, 96, 1160, 1600, 44);
   ctx.font = '26px ' + sans;
-  ctx.fillStyle = color('#5e706d');
+  ctx.fillStyle = color('#5e706d', 'meta');
   ctx.fillText(project.keywords.join(' / '), 96, 1250);
   ctx.textAlign = 'right';
   ctx.fillText(project.number + ' / 06', 1696, 1250);

@@ -17,6 +17,7 @@ export interface PortfolioProject {
   keywords: string[];
   style: ProjectStyle;
   accent: string;
+  cover?: { src: string; alt: string; caption: string; position?: string; fit?: 'cover' | 'contain' };
   // Enable this when replacing the authored paper ink with the project's
   // config-driven print layout. Geometry and baked illumination stay intact.
   editablePrint?: boolean;
@@ -28,9 +29,9 @@ export interface PortfolioProject {
 export const portfolio = {
   name: 'Corden',
   monogram: 'C',
-  discipline: 'RESEARCH  /  ENGINEERING  /  IDEAS',
-  headline: ['NOT EVERYTHING', 'STAYS ON', 'PAPER.'],
-  introduction: 'A journey through ideas, experiments, and the work that makes them real.',
+  discipline: 'AI 与智能体  /  工具与工程  /  创意与交互',
+  headline: ['从一个想法', '到可以运行', '的作品。'],
+  introduction: '我是 Corden，探索本地 AI、计算机视觉、开源工具与 Web 交互。这里收录六个方向的九项作品，以及它们的实现、成果与公开记录。',
   email: '',
   github: 'https://github.com/Corden404',
   // The physical monitor displays this local profile capture; its link opens
@@ -42,6 +43,7 @@ export const portfolio = {
   projects: [
     {
       id: 'paper-a', number: '01', tag: '本地大模型与智能体',
+      cover: { src: '/assets/projects/qwen-dragon.jpg', alt: 'Qwen 智能体通关录像中的末影龙死亡动画画面', caption: 'Qwen Beats Minecraft · 实际通关录像 13:49 帧', fit: 'cover' },
       title: '让模型\n真正行动', heroHeading: '让模型\n真正行动',
       subtitle: '从语言模型到实际行动，让 AI 不止于对话。',
       summary: '本地部署 Qwen 3.5 9B，通过 llama.cpp 提供模型推理服务，并使用结构化 API 连接智能体的规划、行动与环境反馈。',
@@ -53,6 +55,7 @@ export const portfolio = {
     },
     {
       id: 'paper-b', number: '02', tag: '计算机视觉与实时检测',
+      cover: { src: '/assets/projects/yolo-detection.jpg', alt: 'YOLOv8n 在游戏画面中标出两个人物目标及模型置信度', caption: 'YOLO Enemy Detection · 双人物目标检测输出', fit: 'cover' },
       title: '让机器\n理解画面', heroHeading: '让机器\n理解画面',
       subtitle: '从数据到模型，从模型到实时视觉感知。',
       summary: '基于 Ultralytics YOLOv8 构建游戏人物检测系统，覆盖数据准备、模型训练、性能验证与流式视觉推理。',
@@ -64,6 +67,7 @@ export const portfolio = {
     },
     {
       id: 'paper-c', number: '03', tag: 'Harness 与 AI 工具链',
+      cover: { src: '/assets/projects/thesis-workflow.png', alt: '论文排版 Skill 演示页面中的流程图、语法高亮代码与矩阵公式', caption: 'SCAU Thesis Formatter Skill · 演示 PDF 第 10 页', fit: 'contain' },
       title: '构建 AI\n背后的工具', heroHeading: '构建 AI\n背后的工具',
       subtitle: '让 AI 不仅能思考，也能使用工具完成工作。',
       summary: '参与开源 AI 开发平台 WebCodex 的开发，并将学术论文排版流程封装为可复用的 AI Skill。',
@@ -92,6 +96,7 @@ export const portfolio = {
     },
     {
       id: 'paper-e', number: '05', tag: '创意编程与三维交互',
+      cover: { src: '/assets/projects/one-world.webp', alt: '一方世界灯塔日景素材，包含海湾、层叠纸景与木质相框', caption: 'One World · 灯塔场景日景素材', fit: 'contain' },
       title: '让创意\n拥有空间', heroHeading: '让创意\n拥有空间',
       subtitle: '以技术构建空间，让想象成为可以探索的世界。',
       summary: '构建可交互的微缩世界与粒子雕塑，以 WebGL 实时渲染创造具有空间感的数字体验。',
@@ -106,6 +111,7 @@ export const portfolio = {
     },
     {
       id: 'paper-f', number: '06', tag: 'Web 应用与产品工程',
+      cover: { src: '/assets/projects/maogai-preview.webp', alt: '思政刷题助手宣传图中的章节选择与答题手机界面', caption: '思政刷题助手 · 原项目宣传图', fit: 'contain' },
       title: '把想法\n做成产品', heroHeading: '把想法\n做成产品',
       subtitle: '从功能设计到上线使用，让技术真正服务于需求。',
       summary: '基于 Vue 3、Tailwind CSS 与 Supabase 开发的在线学习平台，围绕真实备考需求，实现智能练习、错题管理、学习数据同步与知识分享。',

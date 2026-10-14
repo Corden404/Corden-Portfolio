@@ -27,6 +27,7 @@ import type { AtmosphereData } from './RealtimeFog';
 import RealtimeGrade from './RealtimeGrade';
 import { createLightingTexture, createPaperMaterial } from './realtimePaperMaterial';
 import type { LightingTexture } from './realtimePaperMaterial';
+import { PAPER_SWAY, paperSwayParameters } from './realtimePaperMotion';
 import { configureFloorMaterial } from './realtimeFloorMaterial';
 import { createRenderSchedule, FrameSchedule, StaticSceneCache } from './realtimeRenderSchedule';
 import type { RenderSchedule } from './realtimeRenderSchedule';
@@ -37,6 +38,8 @@ import './realtime-preview.css';
 RectAreaLightUniformsLib.init();
 const chapters = stages;
 type Chapter = Stage;
+const chapterTitle = (entry: Chapter) => entry === 'intro' ? '纸上的起点' : entry === 'screen' ? '完整作品集' :
+  portfolio.projects.find(item => item.id === entry)?.category ?? entry;
 type Quality = 'cinema' | 'balanced';
 type GeometryData = { positions: number[]; normals: number[]; uvs: number[]; indices: number[] };
 type CameraSample = { frame: number; position: number[]; quaternion: number[]; landscapeLens: number; portraitLens: number };
@@ -50,12 +53,14 @@ type LightingData = { sourceSha256: string; bakedPapers: number; grid: [number, 
 type HeroLightingData = { sourceSha256: string; names: string[]; frames: number[]; grid: [number, number]; weights: [number, number, number][] };
 type SceneBundle = { data: SceneData; binary: ArrayBuffer; lighting: LightingData; lightBinary: ArrayBuffer;
   atmosphere: AtmosphereData; volumeBinary: ArrayBuffer; heroLighting: HeroLightingData; heroBinary: ArrayBuffer };
-type PreviewStats = { ready: boolean; frame: number; fps: number; renderFrames: number; cachedFrames: number; presentedFrames: number; triangles: number; drawCalls: number; instances: number; moving: boolean; quality: Quality };
+type PreviewStats = { ready: boolean; frame: number; fps: number; renderFrames: number; cachedFrames: number; presentedFrames: number; triangles: number; drawCalls: number; instances: number; moving: boolean; quality: Quality; paperSwayTime: number; paperSwayStrength: number };
 declare global { interface Window { __PAPER_3D?: PreviewStats } }
 
 const params = new URLSearchParams(window.location.search);
 const sceneOnly = params.get('view') === 'scene';
 const still = params.get('still') === '1';
+// A/B-only route for visual regression; production always uses the refined look.
+const tunedPostFx = params.get('postfx') !== '0';
 const requested = params.get('chapter') as Chapter;
 const textureUrls = Array.from({ length: 7 }, (_, i) => assetUrl(`/assets/realtime/cotton-print-${i + 1}.png`));
 const monitorUrl = assetUrl(portfolio.monitorImage);
@@ -146,11 +151,13 @@ function createGeometry(data: GeometryData) {
   return geometry;
 }
 
-function PaperInstances({ data, binary, textures, lighting, grid }: {
+function PaperInstances({ data, binary, textures, lighting, grid, schedule }: {
   data: SceneData; binary: ArrayBuffer; textures: Texture[]; lighting: LightingTexture; grid: [number, number];
+  schedule: RenderSchedule;
 }) {
   const collection = useMemo(() => {
     const materials: ShaderMaterial[] = [];
+    const swayMaterials: ShaderMaterial[] = [];
     const meshes: InstancedMesh[] = [];
     const matrix = new Matrix4();
     const cameraPoints = data.camera.frames.filter((_, i) => i % 12 === 0).map(f => f.position);
@@ -158,6 +165,7 @@ function PaperInstances({ data, binary, textures, lighting, grid }: {
       const number = Number(group.prototype.texture.match(/(\d+)/)![1]) - 1;
       const material = createPaperMaterial(textures[number], lighting, grid, true, .42);
       materials.push(material);
+      if (!group.prototype.ground) swayMaterials.push(material);
       const records = new Float32Array(binary, group.offset, group.count * data.instanceStride);
       const sets: number[][] = [[], [], []];
       for (let i = 0; i < group.count; i++) {
@@ -176,21 +184,27 @@ function PaperInstances({ data, binary, textures, lighting, grid }: {
         if (!indices.length) continue;
         const geometry = createGeometry(group.prototype.levels[level]);
         const offsets = new Float32Array(indices.length);
+        const sway = new Float32Array(indices.length * 3);
         const mesh = new InstancedMesh(geometry, material, indices.length);
         indices.forEach((record, index) => {
           const start = record * data.instanceStride;
           matrix.fromArray(records, start);
           mesh.setMatrixAt(index, matrix);
-          offsets[index] = (group.offset / (data.instanceStride * 4) + record) * grid[0] * grid[1] * 2;
+          const originalRecord = group.offset / (data.instanceStride * 4) + record;
+          offsets[index] = originalRecord * grid[0] * grid[1] * 2;
+          sway.set(paperSwayParameters(originalRecord, group.prototype.ground), index * 3);
         });
         geometry.setAttribute('aLightingOffset', new InstancedBufferAttribute(offsets, 1));
+        geometry.setAttribute('aPaperSway', new InstancedBufferAttribute(sway, 3));
         mesh.name = `${group.name} / detail ${level}`;
         mesh.instanceMatrix.needsUpdate = true;
         mesh.computeBoundingSphere();
+        // CPU frustum culling must include the small displacement done on the GPU.
+        if (!group.prototype.ground && mesh.boundingSphere) mesh.boundingSphere.radius += PAPER_SWAY.boundsPadding;
         meshes.push(mesh);
       }
     }
-    return { meshes, materials, users: 0 };
+    return { meshes, materials, swayMaterials, users: 0 };
   }, [binary, data, textures, lighting, grid]);
   useEffect(() => {
     collection.users++;
@@ -203,6 +217,12 @@ function PaperInstances({ data, binary, textures, lighting, grid }: {
       });
     };
   }, [collection]);
+  useFrame(() => {
+    for (const material of collection.swayMaterials) {
+      material.uniforms.uSwayTime.value = schedule.paperMotion.time;
+      material.uniforms.uSwayStrength.value = schedule.paperMotion.strength;
+    }
+  }, -1);
   return <group>{collection.meshes.map(mesh => <primitive key={mesh.name} object={mesh} />)}</group>;
 }
 
@@ -349,6 +369,8 @@ function Room({ quality, version, lighting, metadata, frame, chapter, linksEnabl
   const linkFor = (event: ThreeEvent<PointerEvent> | ThreeEvent<MouseEvent>) =>
     linksEnabled && event.uv && event.object.userData.paperId === chapter
       ? paperLinkAt(event.object.userData.paperLinks as PaperLink[], event.uv) : undefined;
+  const isMonitorLink = (event: ThreeEvent<PointerEvent> | ThreeEvent<MouseEvent>) =>
+    linksEnabled && chapter === 'screen' && event.object.name.replace(/_/g, ' ').includes('Monitor warm display');
   useEffect(() => {
     gl.domElement.style.cursor = '';
     return () => { gl.domElement.style.cursor = ''; };
@@ -356,7 +378,7 @@ function Room({ quality, version, lighting, metadata, frame, chapter, linksEnabl
   return <>
     <primitive object={room.scene} dispose={null}
       onPointerMove={(event: ThreeEvent<PointerEvent>) => {
-        if (linkFor(event)) { event.stopPropagation(); gl.domElement.style.cursor = 'pointer'; }
+        if (linkFor(event) || isMonitorLink(event)) { event.stopPropagation(); gl.domElement.style.cursor = 'pointer'; }
         else gl.domElement.style.cursor = '';
       }}
       onPointerOut={() => { gl.domElement.style.cursor = ''; }}
@@ -365,7 +387,7 @@ function Room({ quality, version, lighting, metadata, frame, chapter, linksEnabl
         if (link) {
           event.stopPropagation(); event.nativeEvent.stopPropagation(); onOpenLink(link.url); return;
         }
-        if (event.object.name.replace(/_/g, ' ').includes('Monitor warm display')) {
+        if (isMonitorLink(event)) {
           event.stopPropagation(); event.nativeEvent.stopPropagation(); onOpenScreen();
         }
       }} />
@@ -476,6 +498,7 @@ function World({ bundle, navigation, quality, reducedMotion, schedule, linksEnab
       cachedFrames: schedule.cachedFrames, presentedFrames: schedule.presentedFrames,
       triangles: gl.info.render.triangles, drawCalls: gl.info.render.calls,
       instances: bundle.data.instanceCount, moving: !!flight.current, quality,
+      paperSwayTime: schedule.paperMotion.time, paperSwayStrength: schedule.paperMotion.strength,
     };
     gl.info.reset();
   }, -2);
@@ -497,13 +520,13 @@ function World({ bundle, navigation, quality, reducedMotion, schedule, linksEnab
       <meshBasicMaterial map={glow} color={new Color().setRGB(5.4, 7.1, 7.4)} transparent
         depthWrite={false} side={DoubleSide} blending={AdditiveBlending} toneMapped={false} />
     </mesh>
-    <PaperInstances data={bundle.data} binary={bundle.binary} textures={textures} lighting={lighting} grid={bundle.lighting.grid} />
+    <PaperInstances data={bundle.data} binary={bundle.binary} textures={textures} lighting={lighting} grid={bundle.lighting.grid} schedule={schedule} />
     <Room quality={quality} version={bundle.data.assetVersion} lighting={heroLighting} metadata={bundle.heroLighting} frame={frame}
       chapter={chapter} linksEnabled={linksEnabled} onOpenLink={onOpenLink} onOpenScreen={onOpenScreen} />
     <EffectComposer enabled={false} multisampling={0} enableNormalPass={false}>
-      <RealtimeFog field={atmosphere} quality={quality} />
+      <RealtimeFog field={atmosphere} quality={quality} tuned={tunedPostFx} />
       <Bloom mipmapBlur luminanceThreshold={1.5} luminanceSmoothing={.28} intensity={.20} />
-      <RealtimeGrade version={bundle.data.assetVersion} />
+      <RealtimeGrade version={bundle.data.assetVersion} quality={quality} tuned={tunedPostFx} />
       <SMAA />
       <StaticSceneCache schedule={schedule} />
       <Noise opacity={.008} blendFunction={BlendFunction.SOFT_LIGHT} />
@@ -526,6 +549,8 @@ export default function RealtimePreview() {
   const [ready, setReady] = useState(false);
   const [moving, setMoving] = useState(false);
   const [webEntered, setWebEntered] = useState(params.get('view') === 'collection');
+  const collectionButton = useRef<HTMLButtonElement>(null);
+  const previouslyInCollection = useRef(webEntered);
   const [attemptId, setAttemptId] = useState(0);
   const [error, setError] = useState('');
   const [completed, setCompleted] = useState(0);
@@ -548,6 +573,10 @@ export default function RealtimePreview() {
     setNavigation(previous => requestNavigation(previous, next, skipFlight));
   }, [chapter, error, moving, ready, reducedMotion]);
   const openCollection = useCallback(() => setWebEntered(true), []);
+  useEffect(() => {
+    if (!webEntered && previouslyInCollection.current) collectionButton.current?.focus();
+    previouslyInCollection.current = webEntered;
+  }, [webEntered]);
   const retryScene = useCallback(() => {
     // Explicit error retry also evicts logically invalid completed core data.
     // The cache epoch prevents a late previous attempt from restoring stale data.
@@ -598,9 +627,16 @@ export default function RealtimePreview() {
   }, []);
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (document.querySelector('[role="dialog"]') || (event.target as HTMLElement).closest('button,a,input,textarea')) return;
-      if (event.key === 'Escape' && webEntered) { revisitScene(); return; }
-      if (webEntered) return;
+      if (event.defaultPrevented || document.querySelector('[role="dialog"]')) return;
+      const target = event.target instanceof Element ? event.target : null;
+      if (target?.closest('input,textarea,select,[contenteditable="true"]')) return;
+      if (event.key === 'Escape' && webEntered) { event.preventDefault(); revisitScene(); return; }
+      if (webEntered || target?.closest('button,a,summary')) return;
+      if (chapter === 'screen' && (event.key === 'Enter' || event.key === ' ')) {
+        event.preventDefault();
+        if (ready && !moving && !error) openCollection();
+        return;
+      }
       if (event.key === 'ArrowRight' || event.key === ' ' || event.key === 'Enter') {
         event.preventDefault(); goTo(chapters[Math.min(index + 1, chapters.length - 1)]);
       }
@@ -610,7 +646,7 @@ export default function RealtimePreview() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [goTo, index, revisitScene, webEntered]);
+  }, [chapter, error, goTo, index, moving, openCollection, ready, revisitScene, webEntered]);
   return <div className={`experience experience--rendered realtime-preview${sceneOnly && !webEntered ? ' experience--scene-only' : ''}${webEntered ? ' experience--web' : ''}`}>
     <div className="scene-canvas" aria-hidden="true" onClick={() => {
       if (!sceneOnly && chapter !== 'screen') goTo(chapters[index + 1]);
@@ -620,7 +656,7 @@ export default function RealtimePreview() {
           gl={{ antialias: false, powerPreference: 'high-performance', toneMapping: AgXToneMapping, toneMappingExposure: .9 }}
           onCreated={({ gl }) => { gl.info.autoReset = false; }}
           camera={{ near: .025, far: 55, position: [0, 2, 8] }}>
-          <FrameSchedule active={!webEntered} quality={quality} schedule={schedule} />
+          <FrameSchedule active={!webEntered} motionEnabled={!reducedMotion && !still} quality={quality} schedule={schedule} />
           <Suspense fallback={null}>
             <World bundle={bundle} navigation={navigation} quality={quality} reducedMotion={reducedMotion} schedule={schedule}
               linksEnabled={ready && !moving && !webEntered} onOpenLink={onOpenLink}
@@ -629,17 +665,21 @@ export default function RealtimePreview() {
         </Canvas>
       </PreviewBoundary>}
     </div>
-    <header className={`site-header${webEntered ? ' site-header--hidden' : ''}`}>
+    <header className={`site-header${webEntered || !ready || !!error ? ' site-header--hidden' : ''}`}>
+      <div className="scene-signature"><span>{portfolio.name}</span><small>项目与实验 / 2026</small></div>
       <div className="header-actions">
-        <button type="button" className="text-link collection-link" onClick={openCollection}>作品集 <ArrowUpRight size={14} /></button>
-        <button className="quality-toggle" onClick={() => setQuality(quality === 'cinema' ? 'balanced' : 'cinema')} aria-label="Toggle 3D quality"
-          aria-pressed={quality === 'cinema'} title={quality === 'cinema' ? 'Cinema quality · switch to Lite' : 'Lite quality · switch to Cinema'}>
+        <button ref={collectionButton} type="button" className="text-link collection-link" onClick={openCollection}>查看作品集 <ArrowUpRight size={14} /></button>
+        <button type="button" className="quality-toggle" onClick={() => setQuality(quality === 'cinema' ? 'balanced' : 'cinema')} aria-label="高清画质"
+          aria-pressed={quality === 'cinema'} title={quality === 'cinema' ? '当前为高清画质，点击切换流畅模式' : '当前为流畅模式，点击切换高清画质'}>
           {quality === 'cinema' ? <Eye size={16} /> : <EyeOff size={16} />}
         </button>
       </div>
     </header>
+    {!webEntered && ready && chapter === 'intro' && <div className="scene-introduction" aria-hidden="true">
+      <p>从研究，到实践</p><h2>让想法<br />走出纸面。</h2>
+    </div>}
     {!webEntered && <section className="visually-hidden" aria-live="polite" aria-atomic="true">
-      <h1>{project ? project.title.replace('\n', ' ') : chapter === 'screen' ? 'GitHub' : 'Paper Scene'}</h1>
+      <h1>{project ? project.title.replace('\n', ' ') : chapter === 'screen' ? '完整作品集' : 'Corden 的项目与实验'}</h1>
       {project && <>
         <p>{project.category}</p>
         {project.works?.map(work => <div key={work.title}><h2>{work.title}</h2><p>{work.description}</p></div>)}
@@ -648,31 +688,52 @@ export default function RealtimePreview() {
         {project.website && <p>{project.website}</p>}
       </>}
     </section>}
-    {!webEntered && project && ready && !moving && <nav className="paper-keyboard-links" aria-label="Current paper links">
-      {project.works?.filter(work => work.url).map(work => <a key={work.title} href={work.url} target="_blank" rel="noreferrer">{work.title} ↗</a>)}
-      {project.website && <a href={'https://' + project.website} target="_blank" rel="noreferrer">{project.website} ↗</a>}
+    {!webEntered && project && ready && !moving && <nav className="paper-keyboard-links" aria-label="当前项目链接">
+      {project.works?.filter(work => work.url).map(work => <a key={work.title} href={work.url} target="_blank" rel="noopener noreferrer">{work.title} ↗</a>)}
+      {project.website && <a href={'https://' + project.website} target="_blank" rel="noopener noreferrer">{project.website} ↗</a>}
     </nav>}
     {!webEntered && ready && !error && <footer className="scene-footer">
-      {index === 0 && <p className="journey-hint">点击画面开始</p>}
-      <button className="back-button" type="button" aria-label="Previous chapter" disabled={index === 0 || moving} onClick={() => goTo(chapters[index - 1])}><ArrowLeft size={18} /></button>
-      <div className="footer-chapters" aria-label="3D chapters">
+      <p className="scene-chapter-label" aria-live="polite"><span>{String(index).padStart(2, '0')} / {String(chapters.length - 1).padStart(2, '0')}</span>{chapterTitle(chapter)}</p>
+      {index === 0 && <p className="journey-hint">点击画面或按 → 开始浏览</p>}
+      <button className="back-button" type="button" aria-label="前一章" disabled={index === 0 || moving} onClick={() => goTo(chapters[index - 1])}><ArrowLeft size={18} /></button>
+      <nav className="footer-chapters" aria-label="场景章节">
         {chapters.map(entry => <button className={`chapter-marker${entry === chapter ? ' chapter-marker--active' : ''}`}
-          key={entry} disabled={!ready || !!error} onClick={() => goTo(entry, true)} aria-current={entry === chapter ? 'step' : undefined}
-          aria-label={entry === 'intro' ? 'Go to the space' : entry === 'screen' ? 'Go to the GitHub screen' : `Go to ${portfolio.projects.find(item => item.id === entry)?.title.replace('\n', ' ') ?? entry}`}>
+          key={entry} type="button" disabled={!ready || !!error} onClick={() => goTo(entry, true)} aria-current={entry === chapter ? 'step' : undefined}
+          aria-label={`跳转到${chapterTitle(entry)}`} title={chapterTitle(entry)}>
           <span className="chapter-marker__bar" />
+          <span className="chapter-tooltip" aria-hidden="true">{chapterTitle(entry)}</span>
         </button>)}
-      </div>
+      </nav>
       <div className="footer-actions">
-        {chapter === 'screen' ? <>
-          <button type="button" className="replay-button" disabled={!ready || moving} onClick={() => goTo('intro', true)} aria-label="Replay journey"><RotateCcw size={16} /></button>
-          <a className={`scene-forward${moving ? ' scene-forward--disabled' : ''}`} href={portfolio.github} target="_blank" rel="noreferrer" aria-label="Open GitHub" aria-disabled={moving} onClick={event => { if (moving) event.preventDefault(); }}><ArrowUpRight size={18} /></a>
-        </> : <button className="scene-forward" type="button" aria-label={index === 0 ? 'Begin journey' : 'Next chapter'} disabled={!ready || moving} onClick={() => goTo(chapters[index + 1])}>
-          <ArrowRight size={18} />
-        </button>}
+        {chapter === 'screen' ?
+          <button type="button" className="replay-button" disabled={!ready || moving} onClick={() => goTo('intro', true)} aria-label="重新浏览"><RotateCcw size={16} /></button> :
+          <button className="scene-forward" type="button" aria-label={index === 0 ? '开始浏览' : '下一章'} disabled={!ready || moving} onClick={() => goTo(chapters[index + 1])}>
+            <ArrowRight size={18} />
+          </button>}
       </div>
     </footer>}
+    {!webEntered && ready && !error && chapter === 'screen' && <div className="scene-ending">
+      <button type="button" className="scene-collection-cta" disabled={moving} onClick={openCollection}>查看完整作品集 <ArrowUpRight size={17} /></button>
+      <a href={portfolio.github} target="_blank" rel="noopener noreferrer">在 GitHub 查看源码 <ArrowUpRight size={13} /></a>
+    </div>}
     {webEntered && <div className="portfolio-transition"><FinalPortfolio onRevisit={revisitScene} /></div>}
-    {!webEntered && !ready && !error && <div className="loading-screen"><div role="status" aria-live="polite" className="loading-status"><p>正在准备场景</p><progress value={completed} max={8} aria-label="Loaded scene data resources" /><span className="visually-hidden">{completed} / 8 DATA RESOURCES READY{completed === 8 ? ' · WAITING FOR FIRST FRAME' : ''}</span></div><button type="button" className="text-link" onClick={openCollection}>查看作品集 <ArrowUpRight size={16} /></button></div>}
-    {!webEntered && error && <div className="error-screen"><div role="alert"><h2>The scene could not open.</h2><p>{error}</p></div><button type="button" className="next-button" onClick={openCollection}>VIEW COLLECTION <ArrowUpRight size={16} /></button><button type="button" className="text-link" onClick={retryScene}>RETRY 3D <RotateCcw size={16} /></button><a className="text-link" href={assetUrl('/?render=video')}>OPEN THE ORIGINAL <ArrowUpRight size={16} /></a></div>}
+    {!webEntered && !ready && !error && <div className="loading-screen">
+      <div role="status" aria-live="polite" className="loading-status">
+        <span className="loading-wordmark">{portfolio.name}</span>
+        <p>{completed < 8 ? '正在准备纸张与光影' : '正在绘制第一帧'}</p>
+        <progress value={completed < 8 ? completed : undefined} max={8} aria-label="场景加载进度" />
+        <span className="loading-hint">也可以先查看作品，稍后再进入场景。</span>
+      </div>
+      <button type="button" className="text-link" onClick={openCollection}>先看作品集 <ArrowUpRight size={16} /></button>
+    </div>}
+    {!webEntered && error && <div className="error-screen">
+      <div role="alert"><h2>场景暂时未能打开</h2><p>可以直接浏览完整作品集，也可以重新加载场景。</p></div>
+      <button type="button" className="next-button" onClick={openCollection}>查看作品集 <ArrowUpRight size={16} /></button>
+      <div className="error-actions">
+        <button type="button" className="text-link" onClick={retryScene}>重新加载 <RotateCcw size={16} /></button>
+        <a className="text-link" href={assetUrl('/?render=video')}>查看视频版场景 <ArrowUpRight size={16} /></a>
+      </div>
+      <details className="error-details"><summary>查看错误详情</summary><p>{error}</p></details>
+    </div>}
   </div>;
 }

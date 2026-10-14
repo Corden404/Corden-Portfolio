@@ -3,6 +3,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { BlendFunction, Effect, EffectAttribute } from 'postprocessing';
 import { Data3DTexture, HalfFloatType, LinearFilter, Matrix4, RGBAFormat, Uniform, Vector3 } from 'three';
 import type { PerspectiveCamera } from 'three';
+import { FILM_LOOK } from './realtimeLook';
 
 export type AtmosphereData = {
   sourceSha256: string; grid: [number, number, number]; min: number[]; max: number[]; albedo: number[]; phase: number;
@@ -41,6 +42,7 @@ uniform vec3 albedo;
 uniform float phase;
 uniform vec3 eye;
 uniform float steps;
+uniform float uDistanceTreatment;
 void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor) {
   float depth = readDepth(uv);
   vec4 v = inverseProjection * vec4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
@@ -85,11 +87,18 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
     scattering += transmission * loss * albedo * illumination;
     transmission *= 1.0-loss;
   }
-  outputColor = vec4(inputColor.rgb * transmission + scattering, inputColor.a);
+  // Keep original 3D field and depth termination. Nearby print stays
+  // clear, while far papers receive a slightly cooler, softer atmosphere.
+  float depthFocus=smoothstep(${FILM_LOOK.fogDistanceNear.toFixed(1)},${FILM_LOOK.fogDistanceFar.toFixed(1)},distanceToSurface);
+  float depthWeight=mix(1.0,mix(${FILM_LOOK.fogNearWeight.toFixed(2)},${FILM_LOOK.fogFarWeight.toFixed(2)},depthFocus),uDistanceTreatment);
+  vec3 coolAir=mix(vec3(1.0),vec3(.972,.994,1.012),depthFocus*uDistanceTreatment*.38);
+  vec3 tunedScattering=scattering*depthWeight*coolAir;
+  float tunedTransmission=pow(max(transmission,.00001),depthWeight);
+  outputColor=vec4(inputColor.rgb*tunedTransmission+tunedScattering,inputColor.a);
 }`;
 
 class FogEffect extends Effect {
-  constructor(field: Atmosphere) {
+  constructor(field: Atmosphere, tuned: boolean) {
     super('V4WorldFog', fragment, {
       blendFunction: BlendFunction.NORMAL,
       attributes: EffectAttribute.DEPTH,
@@ -107,17 +116,18 @@ class FogEffect extends Effect {
         ['phase', new Uniform(field.data.phase)],
         ['eye', new Uniform(new Vector3())],
         ['steps', new Uniform(40)],
+        ['uDistanceTreatment', new Uniform(tuned ? 1 : 0)],
       ]),
     });
   }
 }
 
-export default function RealtimeFog({ field, quality }: {
+export default function RealtimeFog({ field, quality, tuned }: {
   field: Atmosphere;
-  quality: 'cinema' | 'balanced';
+  quality: 'cinema' | 'balanced'; tuned: boolean;
 }) {
   const { camera } = useThree();
-  const effect = useMemo(() => new FogEffect(field), [field]);
+  const effect = useMemo(() => new FogEffect(field, tuned), [field, tuned]);
   useFrame(() => {
     const uniforms = effect.uniforms;
     (uniforms.get('inverseProjection')!.value as Matrix4).copy((camera as PerspectiveCamera).projectionMatrixInverse);
