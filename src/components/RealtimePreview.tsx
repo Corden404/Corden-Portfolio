@@ -718,10 +718,6 @@ export default function RealtimePreview() {
         {chapter === 'screen' && <button type="button" className="replay-button" disabled={!ready || moving} onClick={() => goTo('intro', true)} aria-label="重新浏览"><span>重新浏览</span><RotateCcw size={16} /></button>}
       </div>
     </footer>}
-    {!webEntered && ready && !error && chapter === 'screen' && <div className="scene-ending">
-      <button type="button" className="scene-collection-cta" disabled={moving} onClick={openCollection}>查看完整作品集 <ArrowUpRight size={17} /></button>
-      <a href={portfolio.github} target="_blank" rel="noopener noreferrer">在 GitHub 查看源码 <ArrowUpRight size={13} /></a>
-    </div>}
     {webEntered && <div className="portfolio-transition"><FinalPortfolio onRevisit={revisitScene} /></div>}
     {!webEntered && !ready && !error && <div className="loading-screen">
       <div role="status" aria-live="polite" className="loading-status">

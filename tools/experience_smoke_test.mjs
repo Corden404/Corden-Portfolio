@@ -237,7 +237,7 @@ try {
       state.releaseScene();
     } finally { state.releaseScene(); await state.context.close(); }
   });
-  await run('realtime journey: Chinese controls, click, markers, screen collection CTA', async () => {
+  await run('realtime journey: Chinese controls, click, markers, screen replay', async () => {
     const state = await setup();
     const { page } = state;
     try {
@@ -254,15 +254,9 @@ try {
       await chapterReady(page, 4);
       await page.locator('.chapter-marker').nth(7).click();
       await chapterReady(page, 7);
-      const cta = page.locator('.scene-collection-cta');
-      assert(await cta.isVisible(), 'end screen primary collection CTA');
-      const github = page.locator('.scene-ending a[href^="https://github.com/"]');
-      assert(await github.isVisible(), 'end screen secondary GitHub');
-      assert.match(await github.innerText(), /GitHub/);
-      assert.equal(await github.getAttribute('target'), '_blank');
       await capture(page, 'polish-end-screen.png');
-      await cta.click();
-      await collectionReady(page);
+      await page.getByRole('button', { name: '重新浏览', exact: true }).click();
+      await chapterReady(page, 0);
       assert.deepEqual(state.diagnostics, [], 'normal realtime browser diagnostics');
     } finally { await state.context.close(); }
   });

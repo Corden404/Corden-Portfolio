@@ -25,11 +25,6 @@
 .realtime-preview .replay-button { display:flex; align-items:center; justify-content:flex-end; gap:16px; min-width:100px; min-height:44px; padding:0; background:none; border:0; color:#e0e4da; font-size:12px; font-weight:400; letter-spacing:.02em; text-decoration:none; }
 .realtime-preview .back-button svg,.realtime-preview .replay-button svg { stroke-width:1.4; }
 .realtime-preview .back-button:hover:not(:disabled),.realtime-preview .replay-button:hover:not(:disabled) { opacity:.7; }
-.realtime-preview .scene-ending { position:absolute; z-index:8; bottom:140px; left:50%; display:flex; flex-direction:column; align-items:center; gap:8px; transform:translateX(-50%); max-width:calc(100% - 32px); }
-.realtime-preview .scene-collection-cta { display:flex; align-items:center; justify-content:center; gap:24px; min-height:48px; padding:12px 24px; border:1px solid #eeefe7; background:#eeefe7; color:#292d27; font-size:13px; font-weight:400; letter-spacing:0; white-space:nowrap; }
-.realtime-preview .scene-collection-cta:hover:not(:disabled) { background:#fff; }
-.realtime-preview .scene-ending > a { display:flex; align-items:center; gap:7px; min-height:44px; padding:8px 12px; color:#d2d8cc; font-size:11px; text-decoration:none; text-shadow:0 1px 8px #000; }
-.realtime-preview .scene-ending > a:hover { text-decoration:underline; text-underline-offset:4px; }
 .realtime-preview .visually-hidden { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
 .realtime-preview .loading-screen,.realtime-preview .error-screen { padding:24px; overflow-y:auto; background:#101510; color:#e6e9df; }
 .realtime-preview .loading-status { display:flex; flex-direction:column; align-items:center; gap:24px; }
@@ -60,7 +55,6 @@
   .realtime-preview .footer-actions { gap:8px; }
   .realtime-preview .replay-button { min-width:88px; gap:12px; font-size:11px; }
   .realtime-preview .chapter-marker--active .chapter-marker__bar { width:20px; }
-  .realtime-preview .scene-ending { bottom:calc(144px + env(safe-area-inset-bottom)); }
   .realtime-preview .paper-keyboard-links:focus-within { top:80px; right:24px; }
 }
 @media (orientation:landscape) and (max-height:600px) {
@@ -72,8 +66,6 @@
   .realtime-preview .scene-introduction { bottom:22%; }
   .realtime-preview .scene-introduction h2 { font-size:28px; }
   .realtime-preview .scene-introduction .journey-hint { margin-top:12px; }
-  .realtime-preview .scene-ending { bottom:88px; }
-  .realtime-preview .scene-ending > a { min-height:32px; }
 }
 @media (orientation:landscape) and (max-height:600px) and (max-width:720px) {
   .realtime-preview .footer-chapters { gap:2px; }
