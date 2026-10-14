@@ -7,7 +7,7 @@ import type { DepthOfFieldEffect } from 'postprocessing';
 import { Box3, Vector3 } from 'three';
 import type { Stage } from '../config/portfolio';
 import { assetUrl } from '../utils/assetUrl';
-import { sampleCinematicFocus } from './realtimeFocus';
+import { FOCUS_LOOK, sampleCinematicFocus } from './realtimeFocus';
 import type { FocusKeyframe, FocusState } from './realtimeFocus';
 
 export default function CinematicFocus({ enabled, frame, stops, version }: {
@@ -22,7 +22,7 @@ export default function CinematicFocus({ enabled, frame, stops, version }: {
     // is shortened; retain those physical focus anchors along the full route.
     return Object.entries(stops).sort((a, b) => a[1] - b[1]).map(([chapter, stopFrame]) => {
       // The establishing shot keeps the middle of the canopy in focus.
-      if (chapter === 'intro') return { frame: stopFrame, target: [0, 7, -5], range: 10, bokehScale: 1 };
+      if (chapter === 'intro') return { frame: stopFrame, target: [0, 7, -5], ...FOCUS_LOOK.intro };
       const wanted = chapter.startsWith('paper-') ? `Paper ${chapter.slice(-1).toUpperCase()} | hero surface` : 'Monitor warm display';
       const center = new Vector3();
       let found = false;
@@ -32,10 +32,10 @@ export default function CinematicFocus({ enabled, frame, stops, version }: {
       });
       if (!found) throw new Error('A camera focus subject is missing.');
       return { frame: stopFrame, target: [center.x, center.y, center.z],
-        range: chapter === 'screen' ? 1.5 : 1.4, bokehScale: 2.4 };
+        ...FOCUS_LOOK[chapter === 'screen' ? 'screen' : 'paper'] };
     });
   }, [enabled, gltf.scene, stops]);
-  const state = useMemo<FocusState>(() => ({ target: [0, 7, -5], range: 10, bokehScale: 1 }), []);
+  const state = useMemo<FocusState>(() => ({ target: [0, 7, -5], ...FOCUS_LOOK.intro }), []);
   const target = useMemo(() => new Vector3(), []);
   useFrame(() => {
     if (!enabled || !effect.current) return;
@@ -45,5 +45,6 @@ export default function CinematicFocus({ enabled, frame, stops, version }: {
     effect.current.cocMaterial.focusRange = state.range;
     effect.current.bokehScale = state.bokehScale;
   }, -1);
-  return enabled ? <DepthOfField ref={effect} target={target} focusRange={1.4} bokehScale={2.4} height={540} /> : null;
+  return enabled ? <DepthOfField ref={effect} target={target} focusRange={FOCUS_LOOK.paper.range}
+    bokehScale={FOCUS_LOOK.paper.bokehScale} resolutionScale={1} /> : null;
 }

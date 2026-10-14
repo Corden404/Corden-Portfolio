@@ -7,6 +7,13 @@ export type FocusKeyframe = {
 
 export type FocusState = Omit<FocusKeyframe, 'frame'>;
 
+// Keep reading surfaces sharp and use only gentle separation in the distance.
+export const FOCUS_LOOK = {
+  intro: { range: 18, bokehScale: .35 },
+  paper: { range: 4, bokehScale: .65 },
+  screen: { range: 3, bokehScale: .65 },
+} as const;
+
 // Sample focus from the same authored frame as the camera, so instant jumps,
 // reverse travel and reduced motion never leave a separate focus tween behind.
 export function sampleCinematicFocus(keys: readonly FocusKeyframe[], frame: number, state: FocusState): void {

@@ -105,7 +105,7 @@ for (const root of model.scenes[model.scene ?? 0].nodes) visit(root, new Matrix4
 const scene = JSON.parse(fs.readFileSync('public/assets/realtime/scene.json'));
 const focusModule = await build({ entryPoints: ['src/components/realtimeFocus.ts'], bundle: true,
   write: false, format: 'esm', platform: 'node' });
-const { sampleCinematicFocus } = await import('data:text/javascript;base64,' + Buffer.from(focusModule.outputFiles[0].text).toString('base64'));
+const { FOCUS_LOOK, sampleCinematicFocus } = await import('data:text/javascript;base64,' + Buffer.from(focusModule.outputFiles[0].text).toString('base64'));
 const chapterSubjects = Object.entries(scene.stops).filter(([chapter]) => chapter !== 'intro').map(([chapter, frame], i) =>
   ({ chapter, frame, points: [...subjects.entries()].find(([name]) => chapter === 'screen' ? name.includes('Monitor warm display') : name.includes('Paper ' + String.fromCharCode(65+i)))[1] }));
 function cameraFor(sample, width, height, projection) {
@@ -128,10 +128,10 @@ function bounds(camera, points, width, height) {
 }
 
 test('focus stays in front of the camera throughout the actual exported journey', () => {
-  const keys = [{ frame: scene.stops.intro, target: [0, 7, -5], range: 10, bokehScale: 1 },
+  const keys = [{ frame: scene.stops.intro, target: [0, 7, -5], ...FOCUS_LOOK.intro },
     ...chapterSubjects.map(({ chapter, frame, points }) => ({ frame,
       target: new Box3().setFromPoints(points).getCenter(new Vector3()).toArray(),
-      range: chapter === 'screen' ? 1.5 : 1.4, bokehScale: 2.4 }))];
+      ...FOCUS_LOOK[chapter === 'screen' ? 'screen' : 'paper'] }))];
   const focus = { target: [0, 0, 0], range: 0, bokehScale: 0 };
   const forward = new Vector3(), position = new Vector3(), target = new Vector3(), rotation = new Quaternion();
   for (const sample of scene.camera.frames) {
@@ -141,6 +141,24 @@ test('focus stays in front of the camera throughout the actual exported journey'
     assert(depth > .025 && depth < 55, 'focus outside camera depth at frame ' + sample.frame + ': ' + depth);
   }
 });
+
+test('the entire printed surface and monitor stay within a sharp focus band at every reading stop', () => {
+  for (const { chapter, frame, points } of chapterSubjects) {
+    const sample = scene.camera.frames.find(sample => sample.frame === frame);
+    const camera = new Vector3().fromArray(sample.position);
+    const center = new Box3().setFromPoints(points).getCenter(new Vector3());
+    const distance = center.distanceTo(camera);
+    const look = FOCUS_LOOK[chapter === 'screen' ? 'screen' : 'paper'];
+    // Match radial distance and smoothstep CoC, including the bokeh multiplier.
+    // Check actual transformed vertices rather than only each surface center.
+    for (const point of points) {
+      const fraction = Math.min(1, Math.abs(point.distanceTo(camera) - distance) / look.range);
+      const blur = fraction * fraction * (3 - 2 * fraction) * look.bokehScale;
+      assert(blur < .02, chapter + ' reading edge blurred: ' + blur);
+    }
+  }
+});
+
 test('native landscape and portrait preserve all authored camera stops exactly', () => {
   const projection = api('cameraProjection');
   for (const [width,height] of [[1920,1080],[816,1456]]) for (const frame of Object.values(scene.stops)) {
