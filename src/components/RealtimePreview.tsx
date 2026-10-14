@@ -26,6 +26,7 @@ import RealtimeFog, { createAtmosphere } from './RealtimeFog';
 import type { AtmosphereData } from './RealtimeFog';
 import RealtimeGrade from './RealtimeGrade';
 import CinematicFocus from './CinematicFocus';
+import { FILM_LOOK } from './realtimeLook';
 import { createLightingTexture, createPaperMaterial } from './realtimePaperMaterial';
 import type { LightingTexture } from './realtimePaperMaterial';
 import { PAPER_SWAY, paperSwayParameters } from './realtimePaperMotion';
@@ -536,7 +537,9 @@ function World({ bundle, navigation, quality, reducedMotion, schedule, linksEnab
       <RealtimeFog field={atmosphere} quality={quality} tuned={tunedPostFx} />
       <primitive object={fogLensBoundary} dispose={null} />
       <CinematicFocus enabled={quality === 'cinema'} frame={frame} stops={bundle.data.stops} version={bundle.data.assetVersion} />
-      <Bloom mipmapBlur luminanceThreshold={1.8} luminanceSmoothing={.28} intensity={.14} />
+      <Bloom mipmapBlur luminanceThreshold={tunedPostFx ? FILM_LOOK.bloomThreshold : 1.8} luminanceSmoothing={.28}
+        intensity={tunedPostFx ? (quality === 'cinema' ? FILM_LOOK.bloomIntensityCinema : FILM_LOOK.bloomIntensityBalanced) : .14}
+        radius={tunedPostFx ? FILM_LOOK.bloomRadius : .85} />
       <RealtimeGrade version={bundle.data.assetVersion} quality={quality} tuned={tunedPostFx} />
       <SMAA />
       <StaticSceneCache schedule={schedule} />

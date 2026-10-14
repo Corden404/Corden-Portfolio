@@ -10,6 +10,13 @@ const fog=fs.readFileSync('src/components/RealtimeFog.tsx','utf8');
 const scene=fs.readFileSync('src/components/RealtimePreview.tsx','utf8');
 test('filmic parameters remain restrained and finite',()=>{
   for(const [key,value] of Object.entries(FILM_LOOK)) assert(Number.isFinite(value),key);
+  assert(FILM_LOOK.bloomThreshold>=1.5,'printed midtones stay outside the glow threshold');
+  assert(FILM_LOOK.bloomIntensityCinema>0 && FILM_LOOK.bloomIntensityCinema<=.4);
+  assert(FILM_LOOK.bloomIntensityBalanced>0 && FILM_LOOK.bloomIntensityBalanced<FILM_LOOK.bloomIntensityCinema);
+  assert(FILM_LOOK.bloomRadius>=.8 && FILM_LOOK.bloomRadius<=.95);
+  assert(FILM_LOOK.fogDensityFar>1 && FILM_LOOK.fogDensityFar<=1.6);
+  assert(FILM_LOOK.fogUpperDensity>=1 && FILM_LOOK.fogUpperDensity<=1.35);
+  assert(FILM_LOOK.fogHeightNear>=0 && FILM_LOOK.fogHeightFar>FILM_LOOK.fogHeightNear);
   assert(FILM_LOOK.halationThreshold>=1.5,'only very bright light produces halation');
   assert(FILM_LOOK.halationSoftEnd>FILM_LOOK.halationThreshold);
   assert(FILM_LOOK.halationStrengthCinema<=.075 && FILM_LOOK.halationStrengthCinema>0);

@@ -69,9 +69,11 @@ async function run(name,chapter,viewport){
     const treated=await take(context,chapter,false,name);
     const measured=await compare(context,original.image,treated.image);
     assert(measured.meanDifference>.25,'postprocess makes measurable difference: '+name);
-    assert(measured.meanDifference<3.0,'visual balance remains restrained: '+name);
+    assert(measured.meanDifference<6.0,'atmosphere remains bounded: '+name);
     assert(measured.edgeRatio>.93&&measured.edgeRatio<1.07,'foreground edges remain sharp: '+name);
-    assert(measured.brightRatio>.90&&measured.brightRatio<1.10,'bright print strokes remain: '+name);
+    if (chapter !== 'intro') assert(measured.centerDifference<3.0,'reading surface contrast preserved: '+name);
+    const brightLimit=chapter==='intro'?1.5:chapter==='screen'?1.2:1.1;
+    assert(measured.brightRatio>.90&&measured.brightRatio<brightLimit,'highlight growth stays bounded: '+name);
     assert.equal(original.stats.frame,treated.stats.frame,'authored camera frame unchanged');
     assert.equal(original.stats.quality,viewport.width<720?'balanced':'cinema','quality tier intact');
     console.log('PASS',name,JSON.stringify(measured));

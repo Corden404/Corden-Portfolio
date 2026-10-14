@@ -67,7 +67,13 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
     }
     field = (field*(fieldGrid-1.0)+.5)/fieldGrid;
     vec4 zero = texture(lightZero,field);
-    float density = zero.a;
+    // Strengthen the distant upper volume without veiling nearby print.
+    float travel = (float(i)+jitter)*stride;
+    float distanceMask = smoothstep(${FILM_LOOK.fogDistanceNear.toFixed(1)},${FILM_LOOK.fogDistanceFar.toFixed(1)},travel);
+    float heightMask = smoothstep(${FILM_LOOK.fogHeightNear.toFixed(1)},${FILM_LOOK.fogHeightFar.toFixed(1)},p.y);
+    float densityGain = mix(1.0,${FILM_LOOK.fogDensityFar.toFixed(2)},distanceMask)
+      * mix(1.0,${FILM_LOOK.fogUpperDensity.toFixed(2)},heightMask*distanceMask);
+    float density = zero.a*mix(1.0,densityGain,uDistanceTreatment);
     float loss = 1.0-exp(-density*stride);
     vec3 bx = texture(lightX,field).rgb;
     vec3 by = texture(lightY,field).rgb;
