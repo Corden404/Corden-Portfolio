@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import fs from 'node:fs';
 import { build } from 'esbuild';
-import { Matrix4, PerspectiveCamera, Quaternion, Vector3 } from 'three';
+import { Box3, Matrix4, PerspectiveCamera, Quaternion, Vector3 } from 'three';
 
 const helperPath = 'src/components/realtimeJourney.ts';
 let journey = {};
@@ -103,6 +103,9 @@ function visit(index, parent) {
 }
 for (const root of model.scenes[model.scene ?? 0].nodes) visit(root, new Matrix4());
 const scene = JSON.parse(fs.readFileSync('public/assets/realtime/scene.json'));
+const focusModule = await build({ entryPoints: ['src/components/realtimeFocus.ts'], bundle: true,
+  write: false, format: 'esm', platform: 'node' });
+const { sampleCinematicFocus } = await import('data:text/javascript;base64,' + Buffer.from(focusModule.outputFiles[0].text).toString('base64'));
 const chapterSubjects = Object.entries(scene.stops).filter(([chapter]) => chapter !== 'intro').map(([chapter, frame], i) =>
   ({ chapter, frame, points: [...subjects.entries()].find(([name]) => chapter === 'screen' ? name.includes('Monitor warm display') : name.includes('Paper ' + String.fromCharCode(65+i)))[1] }));
 function cameraFor(sample, width, height, projection) {
@@ -123,6 +126,21 @@ function bounds(camera, points, width, height) {
   }
   return {left,right,top,bottom};
 }
+
+test('focus stays in front of the camera throughout the actual exported journey', () => {
+  const keys = [{ frame: scene.stops.intro, target: [0, 7, -5], range: 10, bokehScale: 1 },
+    ...chapterSubjects.map(({ chapter, frame, points }) => ({ frame,
+      target: new Box3().setFromPoints(points).getCenter(new Vector3()).toArray(),
+      range: chapter === 'screen' ? 1.5 : 1.4, bokehScale: 2.4 }))];
+  const focus = { target: [0, 0, 0], range: 0, bokehScale: 0 };
+  const forward = new Vector3(), position = new Vector3(), target = new Vector3(), rotation = new Quaternion();
+  for (const sample of scene.camera.frames) {
+    sampleCinematicFocus(keys, sample.frame, focus);
+    forward.set(0, 0, -1).applyQuaternion(rotation.fromArray(sample.quaternion));
+    const depth = target.fromArray(focus.target).sub(position.fromArray(sample.position)).dot(forward);
+    assert(depth > .025 && depth < 55, 'focus outside camera depth at frame ' + sample.frame + ': ' + depth);
+  }
+});
 test('native landscape and portrait preserve all authored camera stops exactly', () => {
   const projection = api('cameraProjection');
   for (const [width,height] of [[1920,1080],[816,1456]]) for (const frame of Object.values(scene.stops)) {

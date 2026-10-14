@@ -9,9 +9,9 @@ export const FILM_LOOK = {
   "halationStrengthBalanced": 0.045,
   "shadowTintStrength": 0.36,
   "highlightTintStrength": 0.38,
-  "vignetteStrength": 0.065,
+  "vignetteStrength": 0.055,
   "fogDistanceNear": 3,
   "fogDistanceFar": 18,
-  "fogNearWeight": 0.86,
-  "fogFarWeight": 1.06
+  "fogNearWeight": 0.66,
+  "fogFarWeight": 1.1
 } as const;

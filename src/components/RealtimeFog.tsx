@@ -82,7 +82,7 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
     // veils the pages; weighting it by the field's directional coherence
     // separates the lit upper volume from the quieter lower hall.
     float coherence = clamp(length(dominant)/max(dot(zero.rgb,weights)*3.0,.00001),0.0,1.0);
-    float diffuseWeight = mix(.48,.64,coherence);
+    float diffuseWeight = mix(.42,.57,coherence);
     vec3 illumination = max(vec3(0.0),zero.rgb-direct)*diffuseWeight + direct*hg*.76;
     scattering += transmission * loss * albedo * illumination;
     transmission *= 1.0-loss;

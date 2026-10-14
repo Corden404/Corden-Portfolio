@@ -13,8 +13,8 @@ Run `npm ci`, then `npm run dev`. Open the URL printed by Vite.
 - The bottom arrows travel through all eight stops. Click the scene to advance.
 - The small chapter dots jump directly to a stop and can interrupt an ongoing flight. **End** jumps to the computer; the final dot offers the same shortcut.
 - Arrow keys, Space and Enter advance; **Home** returns to the opening.
-- The top eye icon switches quality. **CINEMA** uses a blurred ground reflection, 40 volume steps and up to 1.25 device pixel ratio, targeting 60 fps.
-- **LITE** uses 20 volume steps and up to 1 device pixel ratio, targeting 30 fps. Narrow screens start in LITE. Both quality modes share the dark floor and a soft, narrow warm reflection from the monitor; CINEMA also retains the blurred scene reflection.
+- The top eye icon switches quality. **CINEMA** uses subject-focused depth of field, a blurred 1024-pixel ground reflection, 40 volume steps and up to 1.25 device pixel ratio, targeting 60 fps. Focus follows the authored camera frames smoothly between the canopy, printed sheets and monitor.
+- **LITE** uses 20 volume steps and up to 1 device pixel ratio, targeting 30 fps, with depth of field and planar reflections disabled. Narrow screens start in LITE. Both quality modes share the dark floor and a soft, narrow warm reflection from the monitor.
 - Reduced motion switches directly between stops. Rendering pauses in hidden tabs and while viewing the HTML collection.
 - Stationary views reuse the existing full-resolution HDR frame after anti-aliasing. Film grain keeps animating; pointer movement, camera travel, quality changes and resizing refresh the complete scene, including reflections and volume lighting. This saves idle GPU work without reducing geometry, texture, lighting or reflection quality.
 - **作品集 / 查看作品集** opens the accessible project catalogue, including while the scene is still loading. Load failures retain the collection, retry and original-render fallback actions. **The scene** returns to the final featured sheet, loading the scene if needed.
@@ -37,7 +37,7 @@ node tools/realtime_journey_test.mjs
 
 The six featured papers use `editablePrint: true` in `src/config/portfolio.ts`. Edit the title, category, `works`, `achievements`, subtitle, keywords and optional website there. The browser prints the Chinese/English content onto each sheet with automatic wrapping, preserving its geometry and baked illumination. Surrounding sheets retain the V4 artwork. The HTML project catalogue uses the same content.
 
-Featured lettering emits a warm white glow through a separate text mask; the paper and diagrams retain their sampled surface lighting. Each work's `url` is printed below its description. Click that line on the 3D sheet to open the destination in a new tab. Dual-project sheets have separate links, and the last paper also links to the live application. Link clicks stay on the current chapter. Keyboard users can Tab to the same links; the otherwise hidden link list becomes visible on focus. Project details in the HTML collection include these destinations too.
+Featured sheets use warm cotton, dark printed text and subtle fiber shading while retaining their sampled surface lighting and curved geometry. Lettering emission is kept very low to preserve the printed appearance. Each work's `url` is printed below its description. Click that line on the 3D sheet to open the destination in a new tab. Dual-project sheets have separate links, and the last paper also links to the live application. Link clicks stay on the current chapter. Keyboard users can Tab to the same links; the otherwise hidden link list becomes visible on focus. Project details in the HTML collection include these destinations too.
 
 The Starnet link uses the public source repository. Kaggle links to the public competition page. WebCodex links to the author's merged upstream pull requests.
 

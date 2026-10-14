@@ -35,6 +35,7 @@ varying vec2 vUv;
 varying float vLightingOffset;
 varying float vPaperDepth;
 varying float vLightingSide;
+varying vec3 vPaperWorld;
 void main() {
   vUv = uv;
   vLightingOffset = aLightingOffset;
@@ -60,6 +61,7 @@ void main() {
     p.xyz += drift;
   #endif
   vPaperDepth = -(modelMatrix * p).z;
+  vPaperWorld = (modelMatrix * p).xyz;
   gl_Position = projectionMatrix * modelViewMatrix * p;
 }`;
 
@@ -79,6 +81,17 @@ varying vec2 vUv;
 varying float vLightingOffset;
 varying float vPaperDepth;
 varying float vLightingSide;
+varying vec3 vPaperWorld;
+float fiberHash(vec2 p) { return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
+float fiberNoise(vec2 p) {
+  vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
+  return mix(mix(fiberHash(i),fiberHash(i+vec2(1.0,0.0)),f.x),
+    mix(fiberHash(i+vec2(0.0,1.0)),fiberHash(i+vec2(1.0)),f.x),f.y);
+}
+float cottonHeight(vec2 uv) {
+  return .62*fiberNoise(uv*vec2(360.0,190.0))+
+    .38*fiberNoise(uv*vec2(145.0,520.0));
+}
 vec3 probeAt(float side, vec2 xy, float frameBase) {
   float offset = vLightingOffset + frameBase + side*uGrid.x*uGrid.y + xy.x + xy.y*uGrid.x;
   vec2 pixel = vec2(mod(offset,uLightingSize.x),floor(offset/uLightingSize.x));
@@ -138,20 +151,40 @@ void main() {
   vec3 irradiance = front*(1.0-through) + back*through*shell;
   vec3 ink = texture2D(uPrint,vUv).rgb;
   #ifdef V4_INSTANCED
-    ink = pow(ink,vec3(1.25));
-    ink *= vec3(.85,1.0,1.03);
+    ink = pow(ink,vec3(1.35));
+    ink *= vec3(.84,.96,1.0);
   #endif
   #ifdef V4_HERO
-    // Preserve the baked curvature and reading-light gradient. Neutral
-    // cotton and a little more back-shell light soften the unlit face without
-    // lifting the printed blacks or brightening the instanced background.
-    ink *= vec3(.90,.94,.94);
+    // Keep the baked curvature and reading-light gradient on warm cotton.
+    // Surface light lifts the paper while the ink retains its contrast.
+    ink *= vec3(1.02,1.0,.94);
+    irradiance *= 2.35;
+    float cotton=cottonHeight(vUv);
+    ink *= .985+.03*cotton;
   #endif
   vec3 color = ink * irradiance;
+  #ifdef V4_HERO
+    vec3 dpdx=dFdx(vPaperWorld), dpdy=dFdy(vPaperWorld);
+    vec3 normal=normalize(cross(dpdx,dpdy));
+    vec3 eyeDirection=normalize(cameraPosition-vPaperWorld);
+    if (dot(normal,eyeDirection)<0.0) normal=-normal;
+    float heightField=cottonHeight(vUv)*.0007;
+    vec3 r1=cross(dpdy,normal), r2=cross(normal,dpdx);
+    float determinant=dot(dpdx,r1);
+    vec3 gradient=sign(determinant)*(dFdx(heightField)*r1+dFdy(heightField)*r2);
+    vec3 perturbedNormal=abs(determinant)*normal-gradient;
+    float normalLengthSquared=dot(perturbedNormal,perturbedNormal);
+    vec3 fiberNormal=normalLengthSquared>1e-20 ? perturbedNormal*inversesqrt(normalLengthSquared) : normal;
+    vec3 keyDirection=normalize(vec3(-.4,12.0,-8.0)-vPaperWorld);
+    float microContrast=clamp(dot(fiberNormal,keyDirection)-dot(normal,keyDirection),-.4,.4);
+    color *= 1.0+microContrast*.17;
+    float rim=pow(1.0-clamp(dot(fiberNormal,eyeDirection),0.0,1.0),3.0);
+    color += vec3(.026,.024,.019)*rim;
+  #endif
   #ifdef V4_GLOW
     // Only the lettering emits light. Keep the cotton's baked shading intact.
     float lettering = texture2D(uEmission,vUv).r;
-    color += lettering * vec3(1.0,.91,.76) * 2.8;
+    color += lettering * vec3(1.0,.94,.82) * .035;
   #endif
   gl_FragColor = vec4(color,1.0);
   #include <colorspace_fragment>

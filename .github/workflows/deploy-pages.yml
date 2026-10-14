@@ -31,6 +31,8 @@ jobs:
         run: npm run test:config
       - name: Verify realtime journey
         run: node tools/realtime_journey_test.mjs
+      - name: Verify cinematic focus and postprocessing
+        run: npm run test:postfx
       - name: Build site
         run: npm run build
       - name: Upload Pages artifact

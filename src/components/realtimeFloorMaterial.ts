@@ -18,10 +18,10 @@ export function configureFloorMaterial(material: MeshStandardMaterial, screen: V
     shader.fragmentShader = 'uniform vec3 v4Screen;\nvarying vec3 v4Ground;\n' + shader.fragmentShader;
     shader.fragmentShader = shader.fragmentShader.replace(
       'vec3 totalDiffuse = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse;',
-      'vec3 totalDiffuse = .16*reflectedLight.directDiffuse + .3*reflectedLight.indirectDiffuse;');
+      'vec3 totalDiffuse = .23*reflectedLight.directDiffuse + .42*reflectedLight.indirectDiffuse;');
     shader.fragmentShader = shader.fragmentShader.replace(
       'vec3 totalSpecular = reflectedLight.directSpecular + reflectedLight.indirectSpecular;',
-      'vec3 totalSpecular = .06*reflectedLight.directSpecular + .3*reflectedLight.indirectSpecular;');
+      'vec3 totalSpecular = .075*reflectedLight.directSpecular + .36*reflectedLight.indirectSpecular;');
     shader.fragmentShader = shader.fragmentShader.replace('#include <opaque_fragment>',
       /* glsl */ `
       #include <opaque_fragment>
@@ -41,7 +41,7 @@ export function configureFloorMaterial(material: MeshStandardMaterial, screen: V
       float breakup = .74+.16*sin(v4Ground.z*8.0+v4Ground.x*11.0)+.10*grain;
       float frontOfScreen = smoothstep(-.2,.5,v4Ground.z-v4Screen.z);
       float groundFresnel = .075+.16*pow(1.0-abs(floorView.y),2.0);
-      gl_FragColor.rgb += vec3(1.0,.84,.62)*screenLobe*.24*breakup*frontOfScreen;
+      gl_FragColor.rgb += vec3(1.0,.84,.62)*screenLobe*.18*breakup*frontOfScreen;
       ` + (reflected ? 'gl_FragColor.rgb += max(newMerge.rgb,vec3(0.0))*groundFresnel*(.7+.3*grain);\n' : ''));
   };
   material.customProgramCacheKey = () => `v4-concrete-world-reflection-${reflected ? 'cinema' : 'lite'}`;

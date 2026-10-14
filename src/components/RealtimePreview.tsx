@@ -3,7 +3,7 @@ import type { ThreeEvent } from '@react-three/fiber';
 import { MeshReflectorMaterial, useGLTF, useTexture } from '@react-three/drei';
 import type { MeshReflectorMaterial as ReflectorMaterial } from '@react-three/drei/materials/MeshReflectorMaterial';
 import { Bloom, EffectComposer, Noise, SMAA } from '@react-three/postprocessing';
-import { BlendFunction } from 'postprocessing';
+import { BlendFunction, Pass } from 'postprocessing';
 import { ArrowLeft, ArrowRight, ArrowUpRight, Eye, EyeOff, RotateCcw } from 'lucide-react';
 import { Component, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { MutableRefObject, ReactNode } from 'react';
@@ -25,6 +25,7 @@ import type { PaperLink } from '../utils/paperTexture';
 import RealtimeFog, { createAtmosphere } from './RealtimeFog';
 import type { AtmosphereData } from './RealtimeFog';
 import RealtimeGrade from './RealtimeGrade';
+import CinematicFocus from './CinematicFocus';
 import { createLightingTexture, createPaperMaterial } from './realtimePaperMaterial';
 import type { LightingTexture } from './realtimePaperMaterial';
 import { PAPER_SWAY, paperSwayParameters } from './realtimePaperMotion';
@@ -36,6 +37,12 @@ import type { NavigationRequest } from './realtimeJourney';
 import './realtime-preview.css';
 
 RectAreaLightUniformsLib.init();
+class FogLensBoundary extends Pass {
+  // Resolve world-space fog before lens effects read their input texture.
+  // Merging them in one EffectPass makes DOF sample the un-fogged scene.
+  constructor() { super('FogLensBoundary'); this.needsSwap = false; }
+  render() {}
+}
 const chapters = stages;
 type Chapter = Stage;
 const chapterTitle = (entry: Chapter) => entry === 'intro' ? '纸上的起点' : entry === 'screen' ? '完整作品集' :
@@ -233,8 +240,8 @@ function ReflectiveFloor({ height, screen }: { height: number; screen: Vector3 }
   }, [screen]);
   return <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, height + .0001, 0]}>
     <planeGeometry args={[36, 42]} />
-    <MeshReflectorMaterial ref={floor} resolution={512} blur={[20, 32]} mixBlur={2} mixStrength={.65}
-      mirror={0} roughness={.12} metalness={0} color="#070d0f" depthScale={.16}
+    <MeshReflectorMaterial ref={floor} resolution={1024} blur={[28, 44]} mixBlur={2} mixStrength={.74}
+      mirror={0} roughness={.20} metalness={0} color="#070d0f" depthScale={.16}
       minDepthThreshold={.7} maxDepthThreshold={1.4} />
   </mesh>;
 }
@@ -320,8 +327,9 @@ function Room({ quality, version, lighting, metadata, frame, chapter, linksEnabl
           material.customProgramCacheKey = () => 'v4-emission-display';
           material.emissive = new Color('#fff4df');
           material.emissiveMap = monitor;
-          material.emissiveIntensity = 6.5;
+          material.emissiveIntensity = 2.5;
         } else if (!name.includes('charcoal hall')) {
+          material.roughness = Math.max(material.roughness, .52);
           // The V4 sky lights exclude furniture. Reduce the realtime rig's
           // direct contribution on the desk while retaining screen bounce.
           material.onBeforeCompile = shader => {
@@ -404,6 +412,7 @@ function World({ bundle, navigation, quality, reducedMotion, schedule, linksEnab
 }) {
   const { camera, size, gl, invalidate } = useThree();
   const light = useRef<DirectionalLight>(null);
+  const fogLensBoundary = useMemo(() => new FogLensBoundary(), []);
   const chapter = navigation.chapter;
   const frame = useRef(bundle.data.stops[chapter]);
   const flight = useRef<{ from: number; to: number; elapsed: number; duration: number } | null>(null);
@@ -513,7 +522,7 @@ function World({ bundle, navigation, quality, reducedMotion, schedule, linksEnab
     <directionalLight position={[-1, 13, 1]} color="#a4c1cf" intensity={.38} />
     <directionalLight position={[-5, 7, 7]} color="#a4c0c5" intensity={.10} />
     <rectAreaLight position={[0, 5.5, 7]} rotation={[-.5, 0, 0]} color="#c2d0d3"
-      intensity={chapter === 'intro' ? 0 : .7} width={5} height={5} />
+      intensity={chapter === 'intro' ? .12 : .56} width={5} height={5} />
     <pointLight position={[0, 1, -.7]} color="#ffe5b7" intensity={2.4} distance={3.2} decay={2} />
     <mesh position={[-.4, 12.8, -9]} rotation={[-.62, 0, 0]}>
       <planeGeometry args={[9, 8]} />
@@ -525,7 +534,9 @@ function World({ bundle, navigation, quality, reducedMotion, schedule, linksEnab
       chapter={chapter} linksEnabled={linksEnabled} onOpenLink={onOpenLink} onOpenScreen={onOpenScreen} />
     <EffectComposer enabled={false} multisampling={0} enableNormalPass={false}>
       <RealtimeFog field={atmosphere} quality={quality} tuned={tunedPostFx} />
-      <Bloom mipmapBlur luminanceThreshold={1.5} luminanceSmoothing={.28} intensity={.20} />
+      <primitive object={fogLensBoundary} dispose={null} />
+      <CinematicFocus enabled={quality === 'cinema'} frame={frame} stops={bundle.data.stops} version={bundle.data.assetVersion} />
+      <Bloom mipmapBlur luminanceThreshold={1.8} luminanceSmoothing={.28} intensity={.14} />
       <RealtimeGrade version={bundle.data.assetVersion} quality={quality} tuned={tunedPostFx} />
       <SMAA />
       <StaticSceneCache schedule={schedule} />

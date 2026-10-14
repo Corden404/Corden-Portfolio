@@ -18,7 +18,7 @@ test('filmic parameters remain restrained and finite',()=>{
   assert(FILM_LOOK.vignetteStrength>0 && FILM_LOOK.vignetteStrength<=.08);
   assert(FILM_LOOK.shadowTintStrength<.5 && FILM_LOOK.highlightTintStrength<.5);
   assert(FILM_LOOK.fogDistanceNear>=2 && FILM_LOOK.fogDistanceFar>FILM_LOOK.fogDistanceNear);
-  assert(FILM_LOOK.fogNearWeight>=.80 && FILM_LOOK.fogNearWeight<1);
+  assert(FILM_LOOK.fogNearWeight>=.65 && FILM_LOOK.fogNearWeight<1);
   assert(FILM_LOOK.fogFarWeight>1 && FILM_LOOK.fogFarWeight<=1.10);
 });
 test('original LUT, fog volume, and pass sequence are preserved',()=>{
