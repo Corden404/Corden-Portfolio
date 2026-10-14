@@ -677,7 +677,7 @@ export default function RealtimePreview() {
       </PreviewBoundary>}
     </div>
     <header className={`site-header${webEntered || !ready || !!error ? ' site-header--hidden' : ''}`}>
-      <div className="scene-signature"><span>{portfolio.name}</span><small>项目与实验 / 2026</small></div>
+      <div className="scene-signature"><span>{portfolio.name}</span></div>
       <div className="header-actions">
         <button ref={collectionButton} type="button" className="text-link collection-link" onClick={openCollection}>查看作品集 <ArrowUpRight size={14} /></button>
         <button type="button" className="quality-toggle" onClick={() => setQuality(quality === 'cinema' ? 'balanced' : 'cinema')} aria-label="高清画质"
@@ -687,7 +687,8 @@ export default function RealtimePreview() {
       </div>
     </header>
     {!webEntered && ready && chapter === 'intro' && <div className="scene-introduction" aria-hidden="true">
-      <p>从研究，到实践</p><h2>让想法<br />走出纸面。</h2>
+      <h2>让想法<br />走出纸面。</h2>
+      <p className="journey-hint">点击画面 · 方向键 →</p>
     </div>}
     {!webEntered && <section className="visually-hidden" aria-live="polite" aria-atomic="true">
       <h1>{project ? project.title.replace('\n', ' ') : chapter === 'screen' ? '完整作品集' : 'Corden 的项目与实验'}</h1>
@@ -705,8 +706,6 @@ export default function RealtimePreview() {
     </nav>}
     {!webEntered && ready && !error && <footer className="scene-footer">
       <p className="scene-chapter-label" aria-live="polite"><span>{String(index).padStart(2, '0')} / {String(chapters.length - 1).padStart(2, '0')}</span>{chapterTitle(chapter)}</p>
-      {index === 0 && <p className="journey-hint">点击画面或按 → 开始浏览</p>}
-      <button className="back-button" type="button" aria-label="前一章" disabled={index === 0 || moving} onClick={() => goTo(chapters[index - 1])}><ArrowLeft size={18} /></button>
       <nav className="footer-chapters" aria-label="场景章节">
         {chapters.map(entry => <button className={`chapter-marker${entry === chapter ? ' chapter-marker--active' : ''}`}
           key={entry} type="button" disabled={!ready || !!error} onClick={() => goTo(entry, true)} aria-current={entry === chapter ? 'step' : undefined}
@@ -716,10 +715,11 @@ export default function RealtimePreview() {
         </button>)}
       </nav>
       <div className="footer-actions">
+        <button className="back-button" type="button" aria-label="前一章" disabled={index === 0 || moving} onClick={() => goTo(chapters[index - 1])}><ArrowLeft size={18} /></button>
         {chapter === 'screen' ?
-          <button type="button" className="replay-button" disabled={!ready || moving} onClick={() => goTo('intro', true)} aria-label="重新浏览"><RotateCcw size={16} /></button> :
+          <button type="button" className="replay-button" disabled={!ready || moving} onClick={() => goTo('intro', true)} aria-label="重新浏览"><span>重新浏览</span><RotateCcw size={16} /></button> :
           <button className="scene-forward" type="button" aria-label={index === 0 ? '开始浏览' : '下一章'} disabled={!ready || moving} onClick={() => goTo(chapters[index + 1])}>
-            <ArrowRight size={18} />
+            <span>{index === 0 ? '开始浏览' : index === chapters.length - 2 ? '最后一幕' : '下一章'}</span><ArrowRight size={18} />
           </button>}
       </div>
     </footer>}
