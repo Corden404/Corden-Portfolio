@@ -245,12 +245,10 @@ try {
       await sceneReady(page, 0);
       assert.equal(await page.locator('.chapter-marker').count(), 8);
       for (const marker of await page.locator('.chapter-marker').all()) assert((await marker.getAttribute('title'))?.trim(), 'marker has title tooltip');
-      assert(await page.getByRole('button', { name: '开始浏览', exact: true }).isVisible());
       assert(await page.getByRole('button', { name: '前一章', exact: true }).isDisabled());
       assert(await page.locator('.scene-chapter-label').isVisible());
       await page.locator('.scene-canvas').click({ position: { x: 720, y: 650 } });
       await chapterReady(page, 1);
-      assert(await page.getByRole('button', { name: '下一章', exact: true }).isVisible());
       await capture(page, 'polish-after-paper-a.png');
       await page.locator('.chapter-marker').nth(4).click();
       await chapterReady(page, 4);

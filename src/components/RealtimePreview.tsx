@@ -4,7 +4,7 @@ import { MeshReflectorMaterial, useGLTF, useTexture } from '@react-three/drei';
 import type { MeshReflectorMaterial as ReflectorMaterial } from '@react-three/drei/materials/MeshReflectorMaterial';
 import { Bloom, EffectComposer, Noise, SMAA } from '@react-three/postprocessing';
 import { BlendFunction, Pass } from 'postprocessing';
-import { ArrowLeft, ArrowRight, ArrowUpRight, Eye, EyeOff, RotateCcw } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, Eye, EyeOff, RotateCcw } from 'lucide-react';
 import { Component, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { MutableRefObject, ReactNode } from 'react';
 import {
@@ -560,7 +560,7 @@ export default function RealtimePreview() {
   const [ready, setReady] = useState(false);
   const [moving, setMoving] = useState(false);
   const [webEntered, setWebEntered] = useState(params.get('view') === 'collection');
-  const collectionButton = useRef<HTMLButtonElement>(null);
+  const activeChapterButton = useRef<HTMLButtonElement>(null);
   const previouslyInCollection = useRef(webEntered);
   const [attemptId, setAttemptId] = useState(0);
   const [error, setError] = useState('');
@@ -585,7 +585,7 @@ export default function RealtimePreview() {
   }, [chapter, error, moving, ready, reducedMotion]);
   const openCollection = useCallback(() => setWebEntered(true), []);
   useEffect(() => {
-    if (!webEntered && previouslyInCollection.current) collectionButton.current?.focus();
+    if (!webEntered && previouslyInCollection.current) activeChapterButton.current?.focus();
     previouslyInCollection.current = webEntered;
   }, [webEntered]);
   const retryScene = useCallback(() => {
@@ -677,9 +677,7 @@ export default function RealtimePreview() {
       </PreviewBoundary>}
     </div>
     <header className={`site-header${webEntered || !ready || !!error ? ' site-header--hidden' : ''}`}>
-      <div className="scene-signature"><span>{portfolio.name}</span></div>
       <div className="header-actions">
-        <button ref={collectionButton} type="button" className="text-link collection-link" onClick={openCollection}>查看作品集 <ArrowUpRight size={14} /></button>
         <button type="button" className="quality-toggle" onClick={() => setQuality(quality === 'cinema' ? 'balanced' : 'cinema')} aria-label="高清画质"
           aria-pressed={quality === 'cinema'} title={quality === 'cinema' ? '当前为高清画质，点击切换流畅模式' : '当前为流畅模式，点击切换高清画质'}>
           {quality === 'cinema' ? <Eye size={16} /> : <EyeOff size={16} />}
@@ -708,6 +706,7 @@ export default function RealtimePreview() {
       <p className="scene-chapter-label" aria-live="polite"><span>{String(index).padStart(2, '0')} / {String(chapters.length - 1).padStart(2, '0')}</span>{chapterTitle(chapter)}</p>
       <nav className="footer-chapters" aria-label="场景章节">
         {chapters.map(entry => <button className={`chapter-marker${entry === chapter ? ' chapter-marker--active' : ''}`}
+          ref={entry === chapter ? activeChapterButton : undefined}
           key={entry} type="button" disabled={!ready || !!error} onClick={() => goTo(entry, true)} aria-current={entry === chapter ? 'step' : undefined}
           aria-label={`跳转到${chapterTitle(entry)}`} title={chapterTitle(entry)}>
           <span className="chapter-marker__bar" />
@@ -716,11 +715,7 @@ export default function RealtimePreview() {
       </nav>
       <div className="footer-actions">
         <button className="back-button" type="button" aria-label="前一章" disabled={index === 0 || moving} onClick={() => goTo(chapters[index - 1])}><ArrowLeft size={18} /></button>
-        {chapter === 'screen' ?
-          <button type="button" className="replay-button" disabled={!ready || moving} onClick={() => goTo('intro', true)} aria-label="重新浏览"><span>重新浏览</span><RotateCcw size={16} /></button> :
-          <button className="scene-forward" type="button" aria-label={index === 0 ? '开始浏览' : '下一章'} disabled={!ready || moving} onClick={() => goTo(chapters[index + 1])}>
-            <span>{index === 0 ? '开始浏览' : index === chapters.length - 2 ? '最后一幕' : '下一章'}</span><ArrowRight size={18} />
-          </button>}
+        {chapter === 'screen' && <button type="button" className="replay-button" disabled={!ready || moving} onClick={() => goTo('intro', true)} aria-label="重新浏览"><span>重新浏览</span><RotateCcw size={16} /></button>}
       </div>
     </footer>}
     {!webEntered && ready && !error && chapter === 'screen' && <div className="scene-ending">

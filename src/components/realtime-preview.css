@@ -1,12 +1,9 @@
 /* Let the scene carry the atmosphere; controls sit quietly at its edges. */
-.realtime-preview .site-header { justify-content:space-between; padding:24px 4vw; gap:16px; background:linear-gradient(#06100bc2,#06100b73 70%,transparent); text-shadow:0 1px 8px #0009; pointer-events:none; }
-.realtime-preview .scene-signature { display:flex; flex-direction:column; gap:5px; color:#eeefe8; }
-.realtime-preview .scene-signature > span { font-size:17px; font-weight:500; letter-spacing:-.025em; }
+.realtime-preview .site-header { justify-content:flex-end; padding:24px 4vw; gap:16px; background:linear-gradient(#06100bc2,#06100b73 70%,transparent); text-shadow:0 1px 8px #0009; pointer-events:none; }
 .realtime-preview .header-actions { gap:20px; padding:0; border:0; background:none; pointer-events:auto; }
 .realtime-preview .text-link { font-size:12px; font-weight:400; letter-spacing:0; color:#e4e7de; }
 .realtime-preview .text-link:hover { opacity:1; text-decoration:underline; text-underline-offset:5px; }
 .realtime-preview .quality-toggle { display:flex; width:44px; min-height:44px; padding:0; color:#cbd0c6; }
-.realtime-preview .collection-link { min-height:44px; }
 .realtime-preview .scene-introduction { position:absolute; z-index:5; left:4vw; bottom:23%; color:#edf0e7; text-shadow:0 2px 24px #000b; pointer-events:none; }
 .realtime-preview .scene-introduction h2 { margin:0; font-size:clamp(30px,3vw,42px); font-weight:300; line-height:1.5; letter-spacing:-.02em; }
 .realtime-preview .scene-introduction .journey-hint { margin:24px 0 0; color:#c6ccc1; font-size:11px; font-weight:400; letter-spacing:.025em; }
@@ -25,9 +22,9 @@
 .realtime-preview .chapter-marker:not(.chapter-marker--active):hover .chapter-tooltip,.realtime-preview .chapter-marker:not(.chapter-marker--active):focus-visible .chapter-tooltip { opacity:1; }
 .realtime-preview .footer-actions { gap:20px; justify-self:end; }
 .realtime-preview .back-button { display:grid; place-items:center; width:44px; min-height:44px; padding:0; background:none; border:0; color:#e0e4da; }
-.realtime-preview .scene-forward,.realtime-preview .replay-button { display:flex; align-items:center; justify-content:flex-end; gap:16px; min-width:100px; min-height:44px; padding:0; background:none; border:0; color:#e0e4da; font-size:12px; font-weight:400; letter-spacing:.02em; text-decoration:none; }
-.realtime-preview .back-button svg,.realtime-preview .scene-forward svg,.realtime-preview .replay-button svg { stroke-width:1.4; }
-.realtime-preview .back-button:hover:not(:disabled),.realtime-preview .scene-forward:hover:not(:disabled),.realtime-preview .replay-button:hover:not(:disabled) { opacity:.7; }
+.realtime-preview .replay-button { display:flex; align-items:center; justify-content:flex-end; gap:16px; min-width:100px; min-height:44px; padding:0; background:none; border:0; color:#e0e4da; font-size:12px; font-weight:400; letter-spacing:.02em; text-decoration:none; }
+.realtime-preview .back-button svg,.realtime-preview .replay-button svg { stroke-width:1.4; }
+.realtime-preview .back-button:hover:not(:disabled),.realtime-preview .replay-button:hover:not(:disabled) { opacity:.7; }
 .realtime-preview .scene-ending { position:absolute; z-index:8; bottom:140px; left:50%; display:flex; flex-direction:column; align-items:center; gap:8px; transform:translateX(-50%); max-width:calc(100% - 32px); }
 .realtime-preview .scene-collection-cta { display:flex; align-items:center; justify-content:center; gap:24px; min-height:48px; padding:12px 24px; border:1px solid #eeefe7; background:#eeefe7; color:#292d27; font-size:13px; font-weight:400; letter-spacing:0; white-space:nowrap; }
 .realtime-preview .scene-collection-cta:hover:not(:disabled) { background:#fff; }
@@ -61,7 +58,7 @@
   .realtime-preview .scene-chapter-label { flex-direction:column; align-items:flex-start; gap:2px; font-size:10px; }
   .realtime-preview .footer-chapters { grid-column:1 / -1; grid-row:1; justify-self:center; }
   .realtime-preview .footer-actions { gap:8px; }
-  .realtime-preview .scene-forward,.realtime-preview .replay-button { min-width:88px; gap:12px; font-size:11px; }
+  .realtime-preview .replay-button { min-width:88px; gap:12px; font-size:11px; }
   .realtime-preview .chapter-marker--active .chapter-marker__bar { width:20px; }
   .realtime-preview .scene-ending { bottom:calc(144px + env(safe-area-inset-bottom)); }
   .realtime-preview .paper-keyboard-links:focus-within { top:80px; right:24px; }
